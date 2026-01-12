@@ -1,0 +1,270 @@
+// Real TigerGraph learning resources for seeding
+const seedResources = [
+  // Getting Started
+  {
+    title: 'Getting Started with TigerGraph Cloud',
+    description: 'Complete guide to setting up your first TigerGraph Cloud instance. Learn how to create an account, provision a cluster, and connect to your graph database.',
+    type: 'documentation',
+    url: 'https://docs.tigergraph.com/cloud/start/overview',
+    skillLevel: 'beginner',
+    useCases: ['getting-started'],
+    duration: '15 min read',
+    featured: true,
+  },
+  {
+    title: 'TigerGraph GraphStudio Tutorial',
+    description: 'Learn to use GraphStudio, the visual IDE for TigerGraph. Design schemas, load data, write queries, and explore your graph visually.',
+    type: 'tutorial',
+    url: 'https://docs.tigergraph.com/gui/current/graphstudio/overview',
+    skillLevel: 'beginner',
+    useCases: ['getting-started', 'graphstudio'],
+    duration: '30 min',
+    featured: true,
+  },
+  {
+    title: 'What is a Graph Database? (TigerGraph Explained)',
+    description: 'Understand the fundamentals of graph databases and why they outperform relational databases for connected data analysis.',
+    type: 'video',
+    url: 'https://www.youtube.com/watch?v=bqIBVSk0gKA',
+    skillLevel: 'beginner',
+    useCases: ['getting-started'],
+    thumbnail: 'https://img.youtube.com/vi/bqIBVSk0gKA/maxresdefault.jpg',
+    duration: '12 min',
+  },
+  
+  // GSQL
+  {
+    title: 'GSQL 101: Introduction to Graph Query Language',
+    description: 'Your first steps with GSQL. Learn SELECT statements, pattern matching, and basic graph traversals in TigerGraph\'s powerful query language.',
+    type: 'tutorial',
+    url: 'https://docs.tigergraph.com/gsql-ref/current/tutorials/gsql-101/',
+    skillLevel: 'beginner',
+    useCases: ['gsql', 'getting-started'],
+    duration: '45 min',
+    featured: true,
+  },
+  {
+    title: 'GSQL Language Reference',
+    description: 'Comprehensive reference guide for GSQL syntax, data types, operators, and query patterns.',
+    type: 'documentation',
+    url: 'https://docs.tigergraph.com/gsql-ref/current/',
+    skillLevel: 'intermediate',
+    useCases: ['gsql'],
+    duration: 'Reference',
+  },
+  {
+    title: 'Advanced GSQL: Pattern Matching and Accumulator',
+    description: 'Master advanced GSQL concepts including complex pattern matching, accumulators for aggregation, and multi-hop traversals.',
+    type: 'video',
+    url: 'https://www.youtube.com/watch?v=example-gsql-advanced',
+    skillLevel: 'advanced',
+    useCases: ['gsql'],
+    thumbnail: 'https://img.youtube.com/vi/example-gsql-advanced/maxresdefault.jpg',
+    duration: '35 min',
+  },
+  
+  // Fraud Detection
+  {
+    title: 'Fraud Detection with Graph Analytics',
+    description: 'Build a real-time fraud detection system using TigerGraph. Learn to identify fraud rings, suspicious patterns, and anomalies in transaction data.',
+    type: 'tutorial',
+    url: 'https://docs.tigergraph.com/solutions/fraud-detection',
+    skillLevel: 'intermediate',
+    useCases: ['fraud-detection'],
+    duration: '60 min',
+    featured: true,
+  },
+  {
+    title: 'Anti-Money Laundering (AML) Starter Kit',
+    description: 'Pre-built solution for detecting money laundering patterns in financial transaction networks using graph algorithms.',
+    type: 'code',
+    url: 'https://github.com/tigergraph/ecosys/tree/master/starter_kits/AMLStarterKit',
+    skillLevel: 'intermediate',
+    useCases: ['fraud-detection', 'finance'],
+    duration: '2 hours',
+  },
+  {
+    title: 'Real-time Fraud Detection Demo',
+    description: 'Watch how TigerGraph detects fraud in real-time by analyzing connections between accounts, devices, and transactions.',
+    type: 'video',
+    url: 'https://www.youtube.com/watch?v=fraud-demo',
+    skillLevel: 'beginner',
+    useCases: ['fraud-detection'],
+    thumbnail: 'https://img.youtube.com/vi/fraud-demo/maxresdefault.jpg',
+    duration: '18 min',
+  },
+  
+  // Recommendations
+  {
+    title: 'Building Recommendation Engines with Graphs',
+    description: 'Learn how to build personalized recommendation systems using collaborative filtering and graph-based similarity algorithms.',
+    type: 'tutorial',
+    url: 'https://docs.tigergraph.com/solutions/recommendations',
+    skillLevel: 'intermediate',
+    useCases: ['recommendations'],
+    duration: '45 min',
+  },
+  {
+    title: 'E-commerce Recommendation Starter Kit',
+    description: 'Complete solution for product recommendations including "customers who bought also bought", personalized picks, and trending items.',
+    type: 'code',
+    url: 'https://github.com/tigergraph/ecosys/tree/master/starter_kits/recommendations',
+    skillLevel: 'intermediate',
+    useCases: ['recommendations', 'ecommerce'],
+    duration: '90 min',
+  },
+  
+  // GraphRAG & AI
+  {
+    title: 'GraphRAG: Supercharge Your LLMs with Graph Context',
+    description: 'Learn how to combine Large Language Models with TigerGraph for more accurate, contextual AI responses using Graph-Powered RAG.',
+    type: 'blog',
+    url: 'https://www.tigergraph.com/blog/graphrag-enterprise',
+    skillLevel: 'advanced',
+    useCases: ['graphrag', 'ai', 'llm'],
+    duration: '20 min read',
+    featured: true,
+  },
+  {
+    title: 'TigerGraph CoPilot: AI-Powered Graph Analytics',
+    description: 'Explore TigerGraph CoPilot - natural language queries, automatic insights, and AI-assisted graph exploration.',
+    type: 'documentation',
+    url: 'https://docs.tigergraph.com/copilot/',
+    skillLevel: 'beginner',
+    useCases: ['ai', 'copilot'],
+    duration: '25 min',
+  },
+  {
+    title: 'Building a Knowledge Graph with LLM Integration',
+    description: 'Step-by-step guide to building a knowledge graph and integrating it with OpenAI/Gemini for intelligent Q&A.',
+    type: 'tutorial',
+    url: 'https://docs.tigergraph.com/tutorials/knowledge-graph-llm',
+    skillLevel: 'advanced',
+    useCases: ['graphrag', 'knowledge-graph', 'ai'],
+    duration: '2 hours',
+  },
+  
+  // Machine Learning
+  {
+    title: 'Graph Machine Learning with TigerGraph',
+    description: 'Introduction to graph machine learning: node embeddings, graph neural networks, and link prediction using TigerGraph ML Workbench.',
+    type: 'course',
+    url: 'https://www.tigergraph.com/certifications/graph-ml/',
+    skillLevel: 'advanced',
+    useCases: ['gnn', 'machine-learning'],
+    duration: '4 hours',
+  },
+  {
+    title: 'GNN Node Classification Tutorial',
+    description: 'Build a graph neural network for node classification using TigerGraph ML Workbench and PyTorch Geometric.',
+    type: 'tutorial',
+    url: 'https://docs.tigergraph.com/ml-workbench/current/tutorials/gnn-classification',
+    skillLevel: 'advanced',
+    useCases: ['gnn', 'machine-learning'],
+    duration: '90 min',
+  },
+  
+  // Schema Design
+  {
+    title: 'Graph Schema Design Best Practices',
+    description: 'Learn how to design efficient graph schemas. Covers vertex/edge types, attributes, indexing, and common design patterns.',
+    type: 'documentation',
+    url: 'https://docs.tigergraph.com/gsql-ref/current/ddl-and-loading/defining-a-graph-schema',
+    skillLevel: 'intermediate',
+    useCases: ['schema-design'],
+    duration: '40 min',
+  },
+  {
+    title: 'From Relational to Graph: Schema Migration Guide',
+    description: 'How to transform your relational database schema into an optimized graph schema. Includes real-world examples and migration strategies.',
+    type: 'blog',
+    url: 'https://www.tigergraph.com/blog/relational-to-graph',
+    skillLevel: 'intermediate',
+    useCases: ['schema-design', 'migration'],
+    duration: '25 min read',
+  },
+  
+  // Performance & Operations
+  {
+    title: 'TigerGraph Performance Tuning Guide',
+    description: 'Optimize query performance with indexing strategies, query optimization techniques, and cluster configuration best practices.',
+    type: 'documentation',
+    url: 'https://docs.tigergraph.com/admin/current/performance/',
+    skillLevel: 'advanced',
+    useCases: ['performance', 'operations'],
+    duration: '60 min',
+  },
+  {
+    title: 'Data Loading Strategies for Large Graphs',
+    description: 'Best practices for loading billions of vertices and edges. Covers parallel loading, incremental updates, and streaming data.',
+    type: 'tutorial',
+    url: 'https://docs.tigergraph.com/gsql-ref/current/ddl-and-loading/',
+    skillLevel: 'intermediate',
+    useCases: ['data-loading', 'operations'],
+    duration: '45 min',
+  },
+  
+  // Python & APIs
+  {
+    title: 'pyTigerGraph: Python SDK for TigerGraph',
+    description: 'Complete guide to pyTigerGraph - connect to TigerGraph, run queries, manage data, and integrate with Python data science tools.',
+    type: 'documentation',
+    url: 'https://docs.tigergraph.com/pytigergraph/current/',
+    skillLevel: 'intermediate',
+    useCases: ['python', 'api'],
+    duration: '30 min',
+  },
+  {
+    title: 'Building a REST API with TigerGraph',
+    description: 'Learn to expose your graph queries as REST endpoints for integration with web applications and microservices.',
+    type: 'tutorial',
+    url: 'https://docs.tigergraph.com/gsql-ref/current/querying/query-operations',
+    skillLevel: 'intermediate',
+    useCases: ['api', 'integration'],
+    duration: '35 min',
+  },
+  
+  // TigerGraph University
+  {
+    title: 'TigerGraph Fundamentals Certification',
+    description: 'Free certification course covering TigerGraph basics, GSQL, GraphStudio, and essential graph concepts.',
+    type: 'course',
+    url: 'https://www.tigergraph.com/certifications/fundamentals/',
+    skillLevel: 'beginner',
+    useCases: ['certification', 'getting-started'],
+    duration: '6 hours',
+    featured: true,
+  },
+  {
+    title: 'TigerGraph Advanced Certification',
+    description: 'Advanced certification covering complex queries, performance optimization, and enterprise features.',
+    type: 'course',
+    url: 'https://www.tigergraph.com/certifications/advanced/',
+    skillLevel: 'advanced',
+    useCases: ['certification'],
+    duration: '8 hours',
+  },
+  
+  // Social & Community
+  {
+    title: 'TigerGraph Community Forum',
+    description: 'Join the community! Ask questions, share solutions, and connect with other TigerGraph developers and experts.',
+    type: 'documentation',
+    url: 'https://community.tigergraph.com/',
+    skillLevel: 'beginner',
+    useCases: ['community'],
+    duration: 'Ongoing',
+  },
+  {
+    title: 'TigerGraph GitHub - Sample Projects',
+    description: 'Explore open-source sample projects, starter kits, and community contributions on TigerGraph\'s official GitHub.',
+    type: 'code',
+    url: 'https://github.com/tigergraph',
+    skillLevel: 'intermediate',
+    useCases: ['code', 'examples'],
+    duration: 'Explore',
+  },
+];
+
+module.exports = seedResources;
+
