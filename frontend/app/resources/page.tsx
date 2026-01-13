@@ -98,7 +98,7 @@ export default function ResourcesPage() {
     <div className="max-w-7xl mx-auto space-y-6 animate-fade-in">
       {/* Page Header */}
       <div className="space-y-2">
-        <h1 className="text-3xl font-bold text-white">Resource Wall</h1>
+        <h1 className="text-3xl font-bold text-dark-100">Resource Wall</h1>
         <p className="text-dark-400">
           Discover tutorials, videos, documentation, and more to accelerate your TigerGraph journey.
         </p>
@@ -114,7 +114,7 @@ export default function ResourcesPage() {
             placeholder="Search resources..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 rounded-xl bg-dark-800 border border-dark-600 text-white placeholder-dark-400 focus:border-tiger-orange focus:ring-2 focus:ring-tiger-orange/20 transition-all"
+            className="w-full pl-12 pr-4 py-3 rounded-xl bg-dark-800 border border-dark-600 text-dark-100 placeholder-dark-400 focus:border-tiger-orange focus:ring-2 focus:ring-tiger-orange/20 transition-all"
           />
         </div>
 
@@ -123,7 +123,7 @@ export default function ResourcesPage() {
           <select
             value={activeFilters.skillLevel}
             onChange={(e) => setActiveFilters({ ...activeFilters, skillLevel: e.target.value })}
-            className="px-4 py-3 rounded-xl bg-dark-800 border border-dark-600 text-white text-sm cursor-pointer hover:border-dark-500 transition-all"
+            className="px-4 py-3 rounded-xl bg-dark-800 border border-dark-600 text-dark-100 text-sm cursor-pointer hover:border-dark-500 transition-all"
           >
             {filters.skillLevel.map((level) => (
               <option key={level} value={level}>{level === "All" ? "All Levels" : level}</option>
@@ -133,7 +133,7 @@ export default function ResourcesPage() {
           <select
             value={activeFilters.type}
             onChange={(e) => setActiveFilters({ ...activeFilters, type: e.target.value })}
-            className="px-4 py-3 rounded-xl bg-dark-800 border border-dark-600 text-white text-sm cursor-pointer hover:border-dark-500 transition-all"
+            className="px-4 py-3 rounded-xl bg-dark-800 border border-dark-600 text-dark-100 text-sm cursor-pointer hover:border-dark-500 transition-all"
           >
             {filters.type.map((type) => (
               <option key={type} value={type}>{type === "All" ? "All Types" : type}</option>
@@ -146,7 +146,7 @@ export default function ResourcesPage() {
               onClick={() => setViewMode("grid")}
               className={clsx(
                 "p-2 rounded-lg transition-all",
-                viewMode === "grid" ? "bg-dark-600 text-white" : "text-dark-400 hover:text-white"
+                viewMode === "grid" ? "bg-dark-600 text-dark-100" : "text-dark-400 hover:text-dark-100"
               )}
             >
               <Grid3X3 className="w-5 h-5" />
@@ -155,7 +155,7 @@ export default function ResourcesPage() {
               onClick={() => setViewMode("list")}
               className={clsx(
                 "p-2 rounded-lg transition-all",
-                viewMode === "list" ? "bg-dark-600 text-white" : "text-dark-400 hover:text-white"
+                viewMode === "list" ? "bg-dark-600 text-dark-100" : "text-dark-400 hover:text-dark-100"
               )}
             >
               <List className="w-5 h-5" />
@@ -174,8 +174,8 @@ export default function ResourcesPage() {
             </span>
           ) : (
             <>
-              Showing <span className="text-white font-medium">{paginatedResources.length}</span> of{" "}
-              <span className="text-white font-medium">{resources.length}</span> resources
+              Showing <span className="text-dark-100 font-medium">{paginatedResources.length}</span> of{" "}
+              <span className="text-dark-100 font-medium">{resources.length}</span> resources
             </>
           )}
         </p>
@@ -218,14 +218,14 @@ export default function ResourcesPage() {
                         {resource.skillLevel}
                       </span>
                     </div>
-                    <div className="absolute bottom-3 right-3 z-20 flex items-center gap-1 text-xs text-white/80">
+                    <div className="absolute bottom-3 right-3 z-20 flex items-center gap-1 text-xs text-dark-100/80">
                       <Clock className="w-3 h-3" />
                       {resource.duration}
                     </div>
                     {resource.type === "video" && (
                       <div className="absolute inset-0 flex items-center justify-center z-20 opacity-0 group-hover:opacity-100 transition-opacity">
                         <div className="w-16 h-16 rounded-full bg-tiger-orange/90 flex items-center justify-center">
-                          <Play className="w-8 h-8 text-white ml-1" />
+                          <Play className="w-8 h-8 text-dark-100 ml-1" />
                         </div>
                       </div>
                     )}
@@ -237,7 +237,7 @@ export default function ResourcesPage() {
                       <TypeIcon className="w-4 h-4" />
                       <span className="capitalize">{resource.type}</span>
                     </div>
-                    <h3 className="text-lg font-semibold text-white group-hover:text-tiger-orange transition-colors line-clamp-2">
+                    <h3 className="text-lg font-semibold text-dark-100 group-hover:text-tiger-orange transition-colors line-clamp-2">
                       {resource.title}
                     </h3>
                     <p className="text-sm text-dark-400 line-clamp-2">
@@ -257,7 +257,7 @@ export default function ResourcesPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-semibold text-white group-hover:text-tiger-orange transition-colors truncate">
+                      <h3 className="font-semibold text-dark-100 group-hover:text-tiger-orange transition-colors truncate">
                         {resource.title}
                       </h3>
                       <ExternalLink className="w-4 h-4 text-dark-500 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
@@ -290,7 +290,7 @@ export default function ResourcesPage() {
                   "p-2 rounded-lg transition-all",
                   currentPage === 1
                     ? "text-dark-500 cursor-not-allowed"
-                    : "text-dark-300 hover:text-white hover:bg-dark-700"
+                    : "text-dark-300 hover:text-dark-100 hover:bg-dark-700"
                 )}
               >
                 <ChevronLeft className="w-5 h-5" />
@@ -303,8 +303,8 @@ export default function ResourcesPage() {
                   className={clsx(
                     "w-10 h-10 rounded-lg font-medium transition-all",
                     currentPage === page
-                      ? "bg-tiger-orange text-white"
-                      : "text-dark-300 hover:text-white hover:bg-dark-700"
+                      ? "bg-tiger-orange text-dark-100"
+                      : "text-dark-300 hover:text-dark-100 hover:bg-dark-700"
                   )}
                 >
                   {page}
@@ -318,7 +318,7 @@ export default function ResourcesPage() {
                   "p-2 rounded-lg transition-all",
                   currentPage === totalPages
                     ? "text-dark-500 cursor-not-allowed"
-                    : "text-dark-300 hover:text-white hover:bg-dark-700"
+                    : "text-dark-300 hover:text-dark-100 hover:bg-dark-700"
                 )}
               >
                 <ChevronRight className="w-5 h-5" />
@@ -332,7 +332,7 @@ export default function ResourcesPage() {
               <div className="w-16 h-16 rounded-full bg-dark-800 flex items-center justify-center mx-auto mb-4">
                 <Search className="w-8 h-8 text-dark-500" />
               </div>
-              <h3 className="text-lg font-semibold text-white mb-2">No resources found</h3>
+              <h3 className="text-lg font-semibold text-dark-100 mb-2">No resources found</h3>
               <p className="text-dark-400">Try adjusting your search or filters</p>
             </div>
           )}

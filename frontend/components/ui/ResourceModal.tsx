@@ -67,7 +67,7 @@ export default function ResourceModal({ resource, isOpen, onClose }: ResourceMod
         {/* Close button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 z-10 p-2 rounded-lg bg-dark-700/80 text-dark-300 hover:text-white hover:bg-dark-600 transition-all"
+          className="absolute top-4 right-4 z-10 p-2 rounded-lg bg-dark-700/80 text-dark-300 hover:text-dark-100 hover:bg-dark-600 transition-all"
         >
           <X className="w-5 h-5" />
         </button>
@@ -117,7 +117,7 @@ export default function ResourceModal({ resource, isOpen, onClose }: ResourceMod
                     {resource.duration}
                   </span>
                 </div>
-                <h2 className="text-2xl font-bold text-white">{resource.title}</h2>
+                <h2 className="text-2xl font-bold text-dark-100">{resource.title}</h2>
               </div>
             </div>
 

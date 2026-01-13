@@ -108,10 +108,10 @@ export default function ChatPage() {
       {/* Header */}
       <div className="flex items-center gap-4 pb-6 border-b border-dark-600">
         <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-tiger-orange to-amber-500 flex items-center justify-center">
-          <Sparkles className="w-6 h-6 text-white" />
+          <Sparkles className="w-6 h-6 text-dark-100" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-white">AI Resource Chat</h1>
+          <h1 className="text-2xl font-bold text-dark-100">AI Resource Chat</h1>
           <p className="text-dark-400 text-sm">Powered by Gemini + TigerGraph Knowledge Base</p>
         </div>
       </div>
@@ -138,7 +138,7 @@ export default function ChatPage() {
               {message.role === "user" ? (
                 <User className="w-5 h-5 text-dark-300" />
               ) : (
-                <Sparkles className="w-5 h-5 text-white" />
+                <Sparkles className="w-5 h-5 text-dark-100" />
               )}
             </div>
 
@@ -153,7 +153,7 @@ export default function ChatPage() {
                 className={clsx(
                   "inline-block p-4 rounded-2xl text-sm leading-relaxed",
                   message.role === "user"
-                    ? "bg-tiger-orange text-white rounded-tr-none"
+                    ? "bg-tiger-orange text-dark-100 rounded-tr-none"
                     : "bg-dark-800 text-dark-100 rounded-tl-none border border-dark-600"
                 )}
               >
@@ -191,7 +191,7 @@ export default function ChatPage() {
         {isLoading && (
           <div className="flex gap-4">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-tiger-orange to-amber-500 flex items-center justify-center flex-shrink-0">
-              <Sparkles className="w-5 h-5 text-white" />
+              <Sparkles className="w-5 h-5 text-dark-100" />
             </div>
             <div className="p-4 rounded-2xl rounded-tl-none bg-dark-800 border border-dark-600">
               <div className="flex items-center gap-2">
@@ -217,7 +217,7 @@ export default function ChatPage() {
               <button
                 key={prompt}
                 onClick={() => setInput(prompt)}
-                className="px-4 py-2 rounded-xl bg-dark-800 border border-dark-600 text-sm text-dark-300 hover:border-tiger-orange hover:text-white transition-all"
+                className="px-4 py-2 rounded-xl bg-dark-800 border border-dark-600 text-sm text-dark-300 hover:border-tiger-orange hover:text-dark-100 transition-all"
               >
                 {prompt}
               </button>
@@ -236,7 +236,7 @@ export default function ChatPage() {
               onKeyDown={handleKeyDown}
               placeholder="Ask about TigerGraph resources, concepts, or learning paths..."
               rows={1}
-              className="w-full px-4 py-3 pr-12 rounded-xl bg-dark-800 border border-dark-600 text-white placeholder-dark-400 resize-none focus:border-tiger-orange focus:ring-2 focus:ring-tiger-orange/20 transition-all"
+              className="w-full px-4 py-3 pr-12 rounded-xl bg-dark-800 border border-dark-600 text-dark-100 placeholder-dark-400 resize-none focus:border-tiger-orange focus:ring-2 focus:ring-tiger-orange/20 transition-all"
               style={{ minHeight: "48px", maxHeight: "120px" }}
             />
           </div>
@@ -246,7 +246,7 @@ export default function ChatPage() {
             className={clsx(
               "px-4 py-3 rounded-xl font-medium transition-all flex items-center gap-2",
               input.trim() && !isLoading
-                ? "bg-tiger-orange text-white hover:bg-tiger-orange-dark"
+                ? "bg-tiger-orange text-dark-100 hover:bg-tiger-orange-dark"
                 : "bg-dark-700 text-dark-500 cursor-not-allowed"
             )}
           >

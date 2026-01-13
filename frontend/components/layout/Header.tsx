@@ -26,7 +26,7 @@ export default function Header() {
           <input
             type="text"
             placeholder="Search..."
-            className="flex-1 bg-transparent text-sm text-white placeholder-dark-400 outline-none min-w-0"
+            className="flex-1 bg-transparent text-sm text-dark-100 placeholder-dark-400 outline-none min-w-0"
             onFocus={() => setSearchFocused(true)}
             onBlur={() => setSearchFocused(false)}
           />
@@ -44,7 +44,7 @@ export default function Header() {
       {/* Right section */}
       <div className="flex items-center gap-2 lg:gap-4">
         {/* Notifications */}
-        <button className="relative p-2 rounded-lg text-dark-300 hover:text-white hover:bg-dark-700 transition-all">
+        <button className="relative p-2 rounded-lg text-dark-300 hover:text-dark-100 hover:bg-dark-700 transition-all">
           <Bell className="w-5 h-5" />
           <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-tiger-orange rounded-full"></span>
         </button>

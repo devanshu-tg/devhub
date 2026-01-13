@@ -41,13 +41,13 @@ export default function Sidebar() {
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-tiger-orange to-tiger-orange-light flex items-center justify-center">
             <Sparkles className="w-5 h-5 text-white" />
           </div>
-          <span className="font-semibold text-lg text-white group-hover:text-tiger-orange transition-colors">
+          <span className="font-semibold text-lg text-dark-100 group-hover:text-tiger-orange transition-colors">
             DevHub
           </span>
         </Link>
         {/* Mobile close button */}
         <button 
-          className="lg:hidden p-2 text-dark-400 hover:text-white"
+          className="lg:hidden p-2 text-dark-400 hover:text-dark-100"
           onClick={() => setMobileOpen(false)}
         >
           <X className="w-5 h-5" />
@@ -73,7 +73,7 @@ export default function Sidebar() {
                 "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
                 isActive
                   ? "bg-tiger-orange/10 text-tiger-orange"
-                  : "text-dark-200 hover:bg-dark-700 hover:text-white"
+                  : "text-dark-200 hover:bg-dark-700 hover:text-dark-100"
               )}
             >
               <item.icon className={clsx(
@@ -101,7 +101,7 @@ export default function Sidebar() {
               href={item.href}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-dark-300 hover:bg-dark-700 hover:text-white transition-all duration-200"
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-dark-300 hover:bg-dark-700 hover:text-dark-100 transition-all duration-200"
             >
               <item.icon className="w-5 h-5 text-dark-400" />
               {item.name}
@@ -116,7 +116,7 @@ export default function Sidebar() {
         <div className="p-4 rounded-xl bg-gradient-to-br from-tiger-orange/10 to-transparent border border-tiger-orange/20">
           <div className="flex items-center gap-2 mb-2">
             <Sparkles className="w-4 h-4 text-tiger-orange" />
-            <span className="text-sm font-semibold text-white">GSQL AI Pro</span>
+            <span className="text-sm font-semibold text-dark-100">GSQL AI Pro</span>
           </div>
           <p className="text-xs text-dark-300 mb-3">
             Generate production-ready GSQL with AI
@@ -133,7 +133,7 @@ export default function Sidebar() {
     <>
       {/* Mobile menu button */}
       <button
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-lg bg-dark-800 border border-dark-600 text-white"
+        className="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-lg bg-dark-800 border border-dark-600 text-dark-100"
         onClick={() => setMobileOpen(true)}
       >
         <Menu className="w-5 h-5" />

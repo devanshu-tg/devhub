@@ -124,9 +124,9 @@ export default function PathfinderPage() {
     return (
       <div className="max-w-4xl mx-auto flex flex-col items-center justify-center min-h-[60vh] animate-fade-in">
         <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center mb-6">
-          <Loader2 className="w-10 h-10 text-white animate-spin" />
+          <Loader2 className="w-10 h-10 text-dark-100 animate-spin" />
         </div>
-        <h2 className="text-2xl font-bold text-white mb-2">Creating Your Path</h2>
+        <h2 className="text-2xl font-bold text-dark-100 mb-2">Creating Your Path</h2>
         <p className="text-dark-400">Analyzing your goals and experience...</p>
       </div>
     );
@@ -142,7 +142,7 @@ export default function PathfinderPage() {
               <Compass className="w-4 h-4" />
               Learner Pathfinder
             </div>
-            <h1 className="text-3xl font-bold text-white">
+            <h1 className="text-3xl font-bold text-dark-100">
               Let&apos;s find your perfect learning path
             </h1>
             <p className="text-dark-400">
@@ -166,7 +166,7 @@ export default function PathfinderPage() {
 
           {/* Question Card */}
           <div className="p-8 rounded-2xl bg-dark-800 border border-dark-600">
-            <h2 className="text-xl font-semibold text-white mb-6">{currentQ.question}</h2>
+            <h2 className="text-xl font-semibold text-dark-100 mb-6">{currentQ.question}</h2>
             
             <div className="space-y-3">
               {currentQ.options.map((option) => (
@@ -184,7 +184,7 @@ export default function PathfinderPage() {
                     <div>
                       <p className={clsx(
                         "font-medium",
-                        answers[currentQ.id] === option.value ? "text-tiger-orange" : "text-white"
+                        answers[currentQ.id] === option.value ? "text-tiger-orange" : "text-dark-100"
                       )}>
                         {option.label}
                       </p>
@@ -210,7 +210,7 @@ export default function PathfinderPage() {
                 "flex items-center gap-2 px-4 py-2 rounded-lg transition-all",
                 currentQuestion === 0
                   ? "text-dark-500 cursor-not-allowed"
-                  : "text-dark-300 hover:text-white"
+                  : "text-dark-300 hover:text-dark-100"
               )}
             >
               <ChevronLeft className="w-5 h-5" />
@@ -222,7 +222,7 @@ export default function PathfinderPage() {
               className={clsx(
                 "flex items-center gap-2 px-6 py-2 rounded-xl font-medium transition-all",
                 answers[currentQ.id]
-                  ? "bg-tiger-orange text-white hover:bg-tiger-orange-dark"
+                  ? "bg-tiger-orange text-dark-100 hover:bg-tiger-orange-dark"
                   : "bg-dark-700 text-dark-500 cursor-not-allowed"
               )}
             >
@@ -240,7 +240,7 @@ export default function PathfinderPage() {
               <Sparkles className="w-4 h-4" />
               Your Personalized Path
             </div>
-            <h1 className="text-3xl font-bold text-white">
+            <h1 className="text-3xl font-bold text-dark-100">
               {learningPath?.title || "TigerGraph Learning Path"}
             </h1>
             <p className="text-dark-400">{learningPath?.description}</p>
@@ -274,7 +274,7 @@ export default function PathfinderPage() {
                         <span className="text-xs text-tiger-orange font-semibold uppercase tracking-wider">
                           Week {milestone.week}
                         </span>
-                        <h3 className="text-lg font-semibold text-white mt-1">{milestone.title}</h3>
+                        <h3 className="text-lg font-semibold text-dark-100 mt-1">{milestone.title}</h3>
                         <p className="text-sm text-dark-400">{milestone.description}</p>
                       </div>
                     </div>
@@ -293,7 +293,7 @@ export default function PathfinderPage() {
                             {resource.type === "docs" && <BookOpen className="w-4 h-4 text-purple-400" />}
                           </div>
                           <div className="flex-1">
-                            <p className="text-sm font-medium text-white group-hover:text-tiger-orange transition-colors">
+                            <p className="text-sm font-medium text-dark-100 group-hover:text-tiger-orange transition-colors">
                               {resource.title}
                             </p>
                             <p className="text-xs text-dark-500">{resource.type} • {resource.duration}</p>
@@ -316,12 +316,12 @@ export default function PathfinderPage() {
           <div className="flex justify-center gap-4">
             <button
               onClick={handleRestart}
-              className="px-6 py-3 rounded-xl bg-dark-700 text-white font-medium hover:bg-dark-600 transition-all flex items-center gap-2"
+              className="px-6 py-3 rounded-xl bg-dark-700 text-dark-100 font-medium hover:bg-dark-600 transition-all flex items-center gap-2"
             >
               <RotateCcw className="w-4 h-4" />
               Retake Quiz
             </button>
-            <button className="px-6 py-3 rounded-xl bg-tiger-orange text-white font-medium hover:bg-tiger-orange-dark transition-all flex items-center gap-2">
+            <button className="px-6 py-3 rounded-xl bg-tiger-orange text-dark-100 font-medium hover:bg-tiger-orange-dark transition-all flex items-center gap-2">
               <Sparkles className="w-5 h-5" />
               Start Learning
             </button>

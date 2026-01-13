@@ -48,10 +48,10 @@ export default function Home() {
           </div>
           
           <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight">
-            <span className="text-white">Master </span>
+            <span className="text-dark-100">Master </span>
             <span className="gradient-text">TigerGraph</span>
             <br />
-            <span className="text-white">Faster Than Ever</span>
+            <span className="text-dark-100">Faster Than Ever</span>
           </h1>
           
           <p className="text-base lg:text-lg text-dark-300 max-w-2xl mx-auto leading-relaxed px-4">
@@ -69,7 +69,7 @@ export default function Home() {
             </Link>
             <Link
               href="/chat"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-dark-700 text-white font-semibold hover:bg-dark-600 transition-all border border-dark-500"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-dark-700 text-dark-100 font-semibold hover:bg-dark-600 transition-all border border-dark-500"
             >
               <MessageSquare className="w-4 h-4" />
               Ask AI
@@ -86,7 +86,7 @@ export default function Home() {
             className="p-4 lg:p-6 rounded-xl lg:rounded-2xl bg-dark-800/50 border border-dark-600 text-center card-hover"
           >
             <stat.icon className="w-5 lg:w-6 h-5 lg:h-6 text-tiger-orange mx-auto mb-2 lg:mb-3" />
-            <p className="text-xl lg:text-3xl font-bold text-white">{stat.value}</p>
+            <p className="text-xl lg:text-3xl font-bold text-dark-100">{stat.value}</p>
             <p className="text-xs lg:text-sm text-dark-400">{stat.label}</p>
           </div>
         ))}
@@ -94,7 +94,7 @@ export default function Home() {
 
       {/* Feature Cards */}
       <section className="space-y-4 lg:space-y-6">
-        <h2 className="text-xl lg:text-2xl font-bold text-white">Get Started</h2>
+        <h2 className="text-xl lg:text-2xl font-bold text-dark-100">Get Started</h2>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
           {features.map((feature, index) => (
             <Link
@@ -106,7 +106,7 @@ export default function Home() {
               <div className={`w-10 lg:w-12 h-10 lg:h-12 rounded-lg lg:rounded-xl bg-gradient-to-br ${feature.color} flex items-center justify-center mb-3 lg:mb-4 group-hover:scale-110 transition-transform`}>
                 <feature.icon className="w-5 lg:w-6 h-5 lg:h-6 text-white" />
               </div>
-              <h3 className="text-base lg:text-lg font-semibold text-white mb-1 lg:mb-2 group-hover:text-tiger-orange transition-colors">
+              <h3 className="text-base lg:text-lg font-semibold text-dark-100 mb-1 lg:mb-2 group-hover:text-tiger-orange transition-colors">
                 {feature.name}
               </h3>
               <p className="text-xs lg:text-sm text-dark-400 leading-relaxed">
@@ -128,7 +128,7 @@ export default function Home() {
             <Zap className="w-6 lg:w-8 h-6 lg:h-8 text-tiger-orange" />
           </div>
           <div className="flex-1">
-            <h3 className="text-lg lg:text-xl font-semibold text-white mb-2">New to TigerGraph?</h3>
+            <h3 className="text-lg lg:text-xl font-semibold text-dark-100 mb-2">New to TigerGraph?</h3>
             <p className="text-sm lg:text-base text-dark-300 mb-4">
               Take our quick assessment to get a personalized learning path tailored to your 
               experience level and goals.
