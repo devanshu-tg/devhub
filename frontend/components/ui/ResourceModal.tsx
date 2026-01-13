@@ -63,11 +63,11 @@ export default function ResourceModal({ resource, isOpen, onClose }: ResourceMod
       />
       
       {/* Modal */}
-      <div className="relative w-full max-w-4xl max-h-[90vh] m-4 bg-dark-800 rounded-2xl border border-dark-600 overflow-hidden animate-fade-in">
+      <div className="relative w-full max-w-4xl max-h-[90vh] m-4 bg-themed-secondary rounded-2xl border border-themed overflow-hidden animate-fade-in">
         {/* Close button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 z-10 p-2 rounded-lg bg-dark-700/80 text-dark-300 hover:text-dark-100 hover:bg-dark-600 transition-all"
+          className="absolute top-4 right-4 z-10 p-2 rounded-lg bg-themed-tertiary/80 text-themed-secondary hover:text-themed hover:bg-themed-tertiary transition-all"
         >
           <X className="w-5 h-5" />
         </button>
@@ -86,10 +86,10 @@ export default function ResourceModal({ resource, isOpen, onClose }: ResourceMod
               />
             </div>
           ) : (
-            <div className="relative aspect-video bg-dark-700 flex items-center justify-center">
+            <div className="relative aspect-video bg-themed-tertiary flex items-center justify-center">
               <div className="text-center">
-                <TypeIcon className="w-16 h-16 text-dark-500 mx-auto mb-4" />
-                <p className="text-dark-400">Preview not available</p>
+                <TypeIcon className="w-16 h-16 text-themed-muted mx-auto mb-4" />
+                <p className="text-themed-muted">Preview not available</p>
               </div>
             </div>
           )}
@@ -108,21 +108,21 @@ export default function ResourceModal({ resource, isOpen, onClose }: ResourceMod
                   )}>
                     {resource.skillLevel}
                   </span>
-                  <span className="flex items-center gap-1 text-xs text-dark-400">
+                  <span className="flex items-center gap-1 text-xs text-themed-muted">
                     <TypeIcon className="w-3 h-3" />
                     {resource.type}
                   </span>
-                  <span className="flex items-center gap-1 text-xs text-dark-400">
+                  <span className="flex items-center gap-1 text-xs text-themed-muted">
                     <Clock className="w-3 h-3" />
                     {resource.duration}
                   </span>
                 </div>
-                <h2 className="text-2xl font-bold text-dark-100">{resource.title}</h2>
+                <h2 className="text-2xl font-bold text-themed">{resource.title}</h2>
               </div>
             </div>
 
             {/* Description */}
-            <p className="text-dark-300 leading-relaxed">{resource.description}</p>
+            <p className="text-themed-secondary leading-relaxed">{resource.description}</p>
 
             {/* Use Cases */}
             {resource.useCases && resource.useCases.length > 0 && (
@@ -130,7 +130,7 @@ export default function ResourceModal({ resource, isOpen, onClose }: ResourceMod
                 {resource.useCases.map((useCase) => (
                   <span
                     key={useCase}
-                    className="px-3 py-1 rounded-full bg-dark-700 text-dark-300 text-xs"
+                    className="px-3 py-1 rounded-full bg-themed-tertiary text-themed-secondary text-xs"
                   >
                     {useCase}
                   </span>

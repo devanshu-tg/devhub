@@ -124,10 +124,10 @@ export default function PathfinderPage() {
     return (
       <div className="max-w-4xl mx-auto flex flex-col items-center justify-center min-h-[60vh] animate-fade-in">
         <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center mb-6">
-          <Loader2 className="w-10 h-10 text-dark-100 animate-spin" />
+          <Loader2 className="w-10 h-10 text-themed animate-spin" />
         </div>
-        <h2 className="text-2xl font-bold text-dark-100 mb-2">Creating Your Path</h2>
-        <p className="text-dark-400">Analyzing your goals and experience...</p>
+        <h2 className="text-2xl font-bold text-themed mb-2">Creating Your Path</h2>
+        <p className="text-themed-muted">Analyzing your goals and experience...</p>
       </div>
     );
   }
@@ -142,10 +142,10 @@ export default function PathfinderPage() {
               <Compass className="w-4 h-4" />
               Learner Pathfinder
             </div>
-            <h1 className="text-3xl font-bold text-dark-100">
+            <h1 className="text-3xl font-bold text-themed">
               Let&apos;s find your perfect learning path
             </h1>
-            <p className="text-dark-400">
+            <p className="text-themed-muted">
               Answer a few questions to get a personalized TigerGraph curriculum
             </p>
           </div>
@@ -153,10 +153,10 @@ export default function PathfinderPage() {
           {/* Progress Bar */}
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
-              <span className="text-dark-400">Question {currentQuestion + 1} of {quizQuestions.length}</span>
+              <span className="text-themed-muted">Question {currentQuestion + 1} of {quizQuestions.length}</span>
               <span className="text-tiger-orange">{Math.round(progress)}%</span>
             </div>
-            <div className="h-2 bg-dark-700 rounded-full overflow-hidden">
+            <div className="h-2 bg-themed-tertiary rounded-full overflow-hidden">
               <div 
                 className="h-full bg-gradient-to-r from-tiger-orange to-amber-500 transition-all duration-500"
                 style={{ width: `${progress}%` }}
@@ -165,8 +165,8 @@ export default function PathfinderPage() {
           </div>
 
           {/* Question Card */}
-          <div className="p-8 rounded-2xl bg-dark-800 border border-dark-600">
-            <h2 className="text-xl font-semibold text-dark-100 mb-6">{currentQ.question}</h2>
+          <div className="p-8 rounded-2xl bg-themed-secondary border border-themed">
+            <h2 className="text-xl font-semibold text-themed mb-6">{currentQ.question}</h2>
             
             <div className="space-y-3">
               {currentQ.options.map((option) => (
@@ -177,19 +177,19 @@ export default function PathfinderPage() {
                     "w-full p-4 rounded-xl border text-left transition-all",
                     answers[currentQ.id] === option.value
                       ? "bg-tiger-orange/10 border-tiger-orange"
-                      : "bg-dark-700/50 border-dark-600 hover:border-dark-500"
+                      : "bg-themed-tertiary/50 border-themed hover:border-tiger-orange/30"
                   )}
                 >
                   <div className="flex items-center justify-between">
                     <div>
                       <p className={clsx(
                         "font-medium",
-                        answers[currentQ.id] === option.value ? "text-tiger-orange" : "text-dark-100"
+                        answers[currentQ.id] === option.value ? "text-tiger-orange" : "text-themed"
                       )}>
                         {option.label}
                       </p>
                       {option.description && (
-                        <p className="text-sm text-dark-400 mt-1">{option.description}</p>
+                        <p className="text-sm text-themed-muted mt-1">{option.description}</p>
                       )}
                     </div>
                     {answers[currentQ.id] === option.value && (
@@ -209,8 +209,8 @@ export default function PathfinderPage() {
               className={clsx(
                 "flex items-center gap-2 px-4 py-2 rounded-lg transition-all",
                 currentQuestion === 0
-                  ? "text-dark-500 cursor-not-allowed"
-                  : "text-dark-300 hover:text-dark-100"
+                  ? "text-themed-muted cursor-not-allowed"
+                  : "text-themed-secondary hover:text-themed"
               )}
             >
               <ChevronLeft className="w-5 h-5" />
@@ -222,8 +222,8 @@ export default function PathfinderPage() {
               className={clsx(
                 "flex items-center gap-2 px-6 py-2 rounded-xl font-medium transition-all",
                 answers[currentQ.id]
-                  ? "bg-tiger-orange text-dark-100 hover:bg-tiger-orange-dark"
-                  : "bg-dark-700 text-dark-500 cursor-not-allowed"
+                  ? "bg-tiger-orange text-themed hover:bg-tiger-orange-dark"
+                  : "bg-themed-tertiary text-themed-muted cursor-not-allowed"
               )}
             >
               {currentQuestion === quizQuestions.length - 1 ? "See My Path" : "Next"}
@@ -240,16 +240,16 @@ export default function PathfinderPage() {
               <Sparkles className="w-4 h-4" />
               Your Personalized Path
             </div>
-            <h1 className="text-3xl font-bold text-dark-100">
+            <h1 className="text-3xl font-bold text-themed">
               {learningPath?.title || "TigerGraph Learning Path"}
             </h1>
-            <p className="text-dark-400">{learningPath?.description}</p>
+            <p className="text-themed-muted">{learningPath?.description}</p>
             <div className="flex items-center justify-center gap-6 text-sm">
-              <span className="flex items-center gap-2 text-dark-300">
+              <span className="flex items-center gap-2 text-themed-secondary">
                 <Clock className="w-4 h-4 text-tiger-orange" />
                 {learningPath?.duration || "3-4 weeks"}
               </span>
-              <span className="flex items-center gap-2 text-dark-300">
+              <span className="flex items-center gap-2 text-themed-secondary">
                 <Target className="w-4 h-4 text-tiger-orange" />
                 {learningPath?.milestones?.length || 0} milestones
               </span>
@@ -262,20 +262,20 @@ export default function PathfinderPage() {
               {learningPath.milestones.map((milestone, idx) => (
                 <div 
                   key={idx}
-                  className="relative pl-8 pb-6 border-l-2 border-dark-600 last:border-transparent last:pb-0"
+                  className="relative pl-8 pb-6 border-l-2 border-themed last:border-transparent last:pb-0"
                 >
                   {/* Timeline dot */}
-                  <div className="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-tiger-orange border-4 border-dark-900" />
+                  <div className="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-tiger-orange border-4 border-themed" />
                   
                   {/* Milestone card */}
-                  <div className="p-6 rounded-2xl bg-dark-800 border border-dark-600">
+                  <div className="p-6 rounded-2xl bg-themed-secondary border border-themed">
                     <div className="flex items-start justify-between mb-4">
                       <div>
                         <span className="text-xs text-tiger-orange font-semibold uppercase tracking-wider">
                           Week {milestone.week}
                         </span>
-                        <h3 className="text-lg font-semibold text-dark-100 mt-1">{milestone.title}</h3>
-                        <p className="text-sm text-dark-400">{milestone.description}</p>
+                        <h3 className="text-lg font-semibold text-themed mt-1">{milestone.title}</h3>
+                        <p className="text-sm text-themed-muted">{milestone.description}</p>
                       </div>
                     </div>
 
@@ -284,21 +284,21 @@ export default function PathfinderPage() {
                       {milestone.resources.map((resource, rIdx) => (
                         <div
                           key={rIdx}
-                          className="flex items-center gap-3 p-3 rounded-lg bg-dark-700/50 hover:bg-dark-700 transition-all cursor-pointer group"
+                          className="flex items-center gap-3 p-3 rounded-lg bg-themed-tertiary/50 hover:bg-themed-tertiary transition-all cursor-pointer group"
                         >
-                          <div className="w-8 h-8 rounded-lg bg-dark-600 flex items-center justify-center">
+                          <div className="w-8 h-8 rounded-lg bg-themed-tertiary flex items-center justify-center">
                             {resource.type === "video" && <Zap className="w-4 h-4 text-amber-400" />}
                             {resource.type === "article" && <BookOpen className="w-4 h-4 text-blue-400" />}
                             {resource.type === "tutorial" && <Code className="w-4 h-4 text-emerald-400" />}
                             {resource.type === "docs" && <BookOpen className="w-4 h-4 text-purple-400" />}
                           </div>
                           <div className="flex-1">
-                            <p className="text-sm font-medium text-dark-100 group-hover:text-tiger-orange transition-colors">
+                            <p className="text-sm font-medium text-themed group-hover:text-tiger-orange transition-colors">
                               {resource.title}
                             </p>
-                            <p className="text-xs text-dark-500">{resource.type} • {resource.duration}</p>
+                            <p className="text-xs text-themed-muted">{resource.type} • {resource.duration}</p>
                           </div>
-                          <ChevronRight className="w-4 h-4 text-dark-500 group-hover:text-tiger-orange transition-colors" />
+                          <ChevronRight className="w-4 h-4 text-themed-muted group-hover:text-tiger-orange transition-colors" />
                         </div>
                       ))}
                     </div>
@@ -308,7 +308,7 @@ export default function PathfinderPage() {
             </div>
           ) : (
             <div className="text-center py-12">
-              <p className="text-dark-400">No milestones available. Try retaking the quiz.</p>
+              <p className="text-themed-muted">No milestones available. Try retaking the quiz.</p>
             </div>
           )}
 
@@ -316,12 +316,12 @@ export default function PathfinderPage() {
           <div className="flex justify-center gap-4">
             <button
               onClick={handleRestart}
-              className="px-6 py-3 rounded-xl bg-dark-700 text-dark-100 font-medium hover:bg-dark-600 transition-all flex items-center gap-2"
+              className="px-6 py-3 rounded-xl bg-themed-tertiary text-themed font-medium hover:bg-themed-tertiary transition-all flex items-center gap-2"
             >
               <RotateCcw className="w-4 h-4" />
               Retake Quiz
             </button>
-            <button className="px-6 py-3 rounded-xl bg-tiger-orange text-dark-100 font-medium hover:bg-tiger-orange-dark transition-all flex items-center gap-2">
+            <button className="px-6 py-3 rounded-xl bg-tiger-orange text-themed font-medium hover:bg-tiger-orange-dark transition-all flex items-center gap-2">
               <Sparkles className="w-5 h-5" />
               Start Learning
             </button>

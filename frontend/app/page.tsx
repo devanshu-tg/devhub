@@ -42,19 +42,19 @@ export default function Home() {
         </div>
 
         <div className="text-center space-y-4 lg:space-y-6">
-          <div className="inline-flex items-center gap-2 px-3 lg:px-4 py-2 rounded-full bg-dark-700/50 border border-dark-600 text-xs lg:text-sm">
+          <div className="inline-flex items-center gap-2 px-3 lg:px-4 py-2 rounded-full bg-themed-tertiary/50 border border-themed text-xs lg:text-sm">
             <Sparkles className="w-4 h-4 text-tiger-orange" />
-            <span className="text-dark-200">AI-Powered Developer Portal</span>
+            <span className="text-themed-secondary">AI-Powered Developer Portal</span>
           </div>
           
           <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight">
-            <span className="text-dark-100">Master </span>
+            <span className="text-themed">Master </span>
             <span className="gradient-text">TigerGraph</span>
             <br />
-            <span className="text-dark-100">Faster Than Ever</span>
+            <span className="text-themed">Faster Than Ever</span>
           </h1>
           
-          <p className="text-base lg:text-lg text-dark-300 max-w-2xl mx-auto leading-relaxed px-4">
+          <p className="text-base lg:text-lg text-themed-secondary max-w-2xl mx-auto leading-relaxed px-4">
             Your unified hub for learning graph databases. Discover resources, 
             get AI-powered guidance, and follow personalized learning paths.
           </p>
@@ -69,7 +69,7 @@ export default function Home() {
             </Link>
             <Link
               href="/chat"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-dark-700 text-dark-100 font-semibold hover:bg-dark-600 transition-all border border-dark-500"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-themed-tertiary text-themed font-semibold hover:bg-themed-secondary transition-all border border-themed"
             >
               <MessageSquare className="w-4 h-4" />
               Ask AI
@@ -83,33 +83,33 @@ export default function Home() {
         {stats.map((stat) => (
           <div
             key={stat.label}
-            className="p-4 lg:p-6 rounded-xl lg:rounded-2xl bg-dark-800/50 border border-dark-600 text-center card-hover"
+            className="p-4 lg:p-6 rounded-xl lg:rounded-2xl bg-themed-secondary/50 border border-themed text-center card-hover"
           >
             <stat.icon className="w-5 lg:w-6 h-5 lg:h-6 text-tiger-orange mx-auto mb-2 lg:mb-3" />
-            <p className="text-xl lg:text-3xl font-bold text-dark-100">{stat.value}</p>
-            <p className="text-xs lg:text-sm text-dark-400">{stat.label}</p>
+            <p className="text-xl lg:text-3xl font-bold text-themed">{stat.value}</p>
+            <p className="text-xs lg:text-sm text-themed-muted">{stat.label}</p>
           </div>
         ))}
       </section>
 
       {/* Feature Cards */}
       <section className="space-y-4 lg:space-y-6">
-        <h2 className="text-xl lg:text-2xl font-bold text-dark-100">Get Started</h2>
+        <h2 className="text-xl lg:text-2xl font-bold text-themed">Get Started</h2>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
           {features.map((feature, index) => (
             <Link
               key={feature.name}
               href={feature.href}
-              className="group p-5 lg:p-6 rounded-xl lg:rounded-2xl bg-dark-800 border border-dark-600 hover:border-dark-500 transition-all card-hover"
+              className="group p-5 lg:p-6 rounded-xl lg:rounded-2xl bg-themed-secondary border border-themed hover:border-tiger-orange/30 transition-all card-hover"
               style={{ animationDelay: `${index * 100}ms` }}
             >
               <div className={`w-10 lg:w-12 h-10 lg:h-12 rounded-lg lg:rounded-xl bg-gradient-to-br ${feature.color} flex items-center justify-center mb-3 lg:mb-4 group-hover:scale-110 transition-transform`}>
                 <feature.icon className="w-5 lg:w-6 h-5 lg:h-6 text-white" />
               </div>
-              <h3 className="text-base lg:text-lg font-semibold text-dark-100 mb-1 lg:mb-2 group-hover:text-tiger-orange transition-colors">
+              <h3 className="text-base lg:text-lg font-semibold text-themed mb-1 lg:mb-2 group-hover:text-tiger-orange transition-colors">
                 {feature.name}
               </h3>
-              <p className="text-xs lg:text-sm text-dark-400 leading-relaxed">
+              <p className="text-xs lg:text-sm text-themed-muted leading-relaxed">
                 {feature.description}
               </p>
               <div className="mt-3 lg:mt-4 flex items-center gap-1 text-xs lg:text-sm text-tiger-orange opacity-0 group-hover:opacity-100 transition-opacity">
@@ -122,14 +122,14 @@ export default function Home() {
       </section>
 
       {/* Quick Start Guide */}
-      <section className="p-5 lg:p-8 rounded-xl lg:rounded-2xl bg-gradient-to-br from-dark-800 to-dark-700 border border-dark-600">
+      <section className="p-5 lg:p-8 rounded-xl lg:rounded-2xl bg-gradient-to-br from-themed-secondary to-themed-tertiary border border-themed">
         <div className="flex flex-col sm:flex-row items-start gap-4 lg:gap-6">
           <div className="p-3 lg:p-4 rounded-lg lg:rounded-xl bg-tiger-orange/10 border border-tiger-orange/20">
             <Zap className="w-6 lg:w-8 h-6 lg:h-8 text-tiger-orange" />
           </div>
           <div className="flex-1">
-            <h3 className="text-lg lg:text-xl font-semibold text-dark-100 mb-2">New to TigerGraph?</h3>
-            <p className="text-sm lg:text-base text-dark-300 mb-4">
+            <h3 className="text-lg lg:text-xl font-semibold text-themed mb-2">New to TigerGraph?</h3>
+            <p className="text-sm lg:text-base text-themed-secondary mb-4">
               Take our quick assessment to get a personalized learning path tailored to your 
               experience level and goals.
             </p>
