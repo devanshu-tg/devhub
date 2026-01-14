@@ -250,7 +250,7 @@ export default function ResourcesPage() {
             </span>
           ) : (
             <>
-              Showing <span className="text-themed font-medium">{paginatedResources.length}</span> of{" "}
+              Showing <span className="text-themed font-medium">{startIndex + 1}-{Math.min(startIndex + ITEMS_PER_PAGE, resources.length)}</span> of{" "}
               <span className="text-themed font-medium">{resources.length}</span> resources
             </>
           )}
@@ -392,7 +392,8 @@ export default function ResourcesPage() {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 pt-6">
+            <div className="flex items-center justify-center gap-1 pt-6">
+              {/* Previous Button */}
               <button
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
@@ -406,21 +407,57 @@ export default function ResourcesPage() {
                 <ChevronLeft className="w-5 h-5" />
               </button>
               
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                <button
-                  key={page}
-                  onClick={() => setCurrentPage(page)}
-                  className={clsx(
-                    "w-10 h-10 rounded-lg font-medium transition-all",
-                    currentPage === page
-                      ? "bg-tiger-orange text-themed"
-                      : "text-themed-secondary hover:text-themed hover:bg-themed-tertiary"
-                  )}
-                >
-                  {page}
-                </button>
-              ))}
+              {/* Page Numbers with Ellipsis */}
+              {(() => {
+                const pages: (number | string)[] = [];
+                const showEllipsisStart = currentPage > 4;
+                const showEllipsisEnd = currentPage < totalPages - 3;
+                
+                // Always show first page
+                pages.push(1);
+                
+                if (showEllipsisStart) {
+                  pages.push('...');
+                }
+                
+                // Pages around current
+                const start = showEllipsisStart ? Math.max(2, currentPage - 1) : 2;
+                const end = showEllipsisEnd ? Math.min(totalPages - 1, currentPage + 1) : totalPages - 1;
+                
+                for (let i = start; i <= end; i++) {
+                  if (!pages.includes(i)) pages.push(i);
+                }
+                
+                if (showEllipsisEnd) {
+                  pages.push('...');
+                }
+                
+                // Always show last page
+                if (totalPages > 1 && !pages.includes(totalPages)) {
+                  pages.push(totalPages);
+                }
+                
+                return pages.map((page, idx) => (
+                  page === '...' ? (
+                    <span key={`ellipsis-${idx}`} className="px-2 text-themed-muted">...</span>
+                  ) : (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page as number)}
+                      className={clsx(
+                        "min-w-[40px] h-10 px-3 rounded-lg font-medium transition-all",
+                        currentPage === page
+                          ? "bg-tiger-orange text-white"
+                          : "text-themed-secondary hover:text-themed hover:bg-themed-tertiary"
+                      )}
+                    >
+                      {page}
+                    </button>
+                  )
+                ));
+              })()}
               
+              {/* Next Button */}
               <button
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
