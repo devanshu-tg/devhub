@@ -57,6 +57,112 @@ CREATE TABLE IF NOT EXISTS chat_history (
 
 CREATE INDEX IF NOT EXISTS idx_chat_session ON chat_history(session_id);
 
+-- ==================== USER TABLES ====================
+
+-- User profiles table (extends Supabase auth.users)
+CREATE TABLE IF NOT EXISTS user_profiles (
+  id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
+  display_name TEXT,
+  avatar_url TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Enable RLS
+ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
+
+-- Users can read their own profile
+CREATE POLICY "Users can view own profile" ON user_profiles
+  FOR SELECT USING (auth.uid() = id);
+
+-- Users can update their own profile
+CREATE POLICY "Users can update own profile" ON user_profiles
+  FOR UPDATE USING (auth.uid() = id);
+
+-- Users can insert their own profile
+CREATE POLICY "Users can insert own profile" ON user_profiles
+  FOR INSERT WITH CHECK (auth.uid() = id);
+
+-- Trigger to create profile on user signup
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.user_profiles (id, display_name)
+  VALUES (NEW.id, NEW.raw_user_meta_data->>'display_name');
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Drop trigger if exists and recreate
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- User bookmarks table
+CREATE TABLE IF NOT EXISTS user_bookmarks (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  resource_id UUID REFERENCES resources(id) ON DELETE CASCADE NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(user_id, resource_id)
+);
+
+-- Enable RLS
+ALTER TABLE user_bookmarks ENABLE ROW LEVEL SECURITY;
+
+-- Users can view their own bookmarks
+CREATE POLICY "Users can view own bookmarks" ON user_bookmarks
+  FOR SELECT USING (auth.uid() = user_id);
+
+-- Users can insert their own bookmarks
+CREATE POLICY "Users can insert own bookmarks" ON user_bookmarks
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- Users can delete their own bookmarks
+CREATE POLICY "Users can delete own bookmarks" ON user_bookmarks
+  FOR DELETE USING (auth.uid() = user_id);
+
+-- Index for faster lookups
+CREATE INDEX IF NOT EXISTS idx_user_bookmarks_user_id ON user_bookmarks(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_bookmarks_resource_id ON user_bookmarks(resource_id);
+
+-- User progress table
+CREATE TABLE IF NOT EXISTS user_progress (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  resource_id UUID REFERENCES resources(id) ON DELETE CASCADE NOT NULL,
+  completed BOOLEAN DEFAULT FALSE,
+  completed_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(user_id, resource_id)
+);
+
+-- Enable RLS
+ALTER TABLE user_progress ENABLE ROW LEVEL SECURITY;
+
+-- Users can view their own progress
+CREATE POLICY "Users can view own progress" ON user_progress
+  FOR SELECT USING (auth.uid() = user_id);
+
+-- Users can insert their own progress
+CREATE POLICY "Users can insert own progress" ON user_progress
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- Users can update their own progress
+CREATE POLICY "Users can update own progress" ON user_progress
+  FOR UPDATE USING (auth.uid() = user_id);
+
+-- Users can delete their own progress
+CREATE POLICY "Users can delete own progress" ON user_progress
+  FOR DELETE USING (auth.uid() = user_id);
+
+-- Index for faster lookups
+CREATE INDEX IF NOT EXISTS idx_user_progress_user_id ON user_progress(user_id);
+
+-- ==================== SEED DATA ====================
+
 -- Seed data for resources
 INSERT INTO resources (title, description, type, skill_level, use_cases, thumbnail, url, duration) VALUES
   ('Getting Started with TigerGraph', 'A comprehensive introduction to TigerGraph, covering installation, basic concepts, and your first graph.', 'tutorial', 'beginner', ARRAY['general'], 'https://i.ytimg.com/vi/JjQI5N-KQS4/maxresdefault.jpg', 'https://docs.tigergraph.com/getting-started', '30 min'),

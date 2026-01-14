@@ -1,4 +1,20 @@
+import { getCurrentSession } from './supabase';
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+
+// Helper to get auth headers - uses cached session instead of calling getSession() which can hang
+function getAuthHeaders(): HeadersInit {
+  const session = getCurrentSession();
+  
+  if (session?.access_token) {
+    return {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session.access_token}`,
+    };
+  }
+  
+  return { 'Content-Type': 'application/json' };
+}
 
 export interface Resource {
   id: string;
@@ -145,5 +161,162 @@ export async function getLearningPaths(): Promise<Array<{
   } catch (error) {
     console.error('API Error:', error);
     return [];
+  }
+}
+
+// ==================== USER API ====================
+
+export interface BookmarkedResource extends Resource {
+  bookmarkId: string;
+  bookmarkedAt: string;
+}
+
+export interface UserProgress {
+  resourceId: string;
+  completed: boolean;
+  completedAt: string | null;
+}
+
+// Bookmarks API
+export async function getBookmarks(): Promise<{ data: BookmarkedResource[]; total: number }> {
+  try {
+    const headers = getAuthHeaders();
+    const res = await fetch(`${API_URL}/user/bookmarks`, { headers });
+    
+    if (res.status === 401) {
+      return { data: [], total: 0 };
+    }
+    
+    if (!res.ok) throw new Error('Failed to fetch bookmarks');
+    return res.json();
+  } catch (error) {
+    console.error('API Error:', error);
+    return { data: [], total: 0 };
+  }
+}
+
+export async function getBookmarkIds(): Promise<string[]> {
+  try {
+    const headers = getAuthHeaders();
+    const res = await fetch(`${API_URL}/user/bookmarks/ids`, { headers });
+    
+    if (res.status === 401) {
+      return [];
+    }
+    
+    if (!res.ok) throw new Error('Failed to fetch bookmark IDs');
+    const data = await res.json();
+    return data.ids || [];
+  } catch (error) {
+    console.error('API Error:', error);
+    return [];
+  }
+}
+
+export async function addBookmark(resourceId: string): Promise<boolean> {
+  try {
+    const headers = getAuthHeaders();
+    const res = await fetch(`${API_URL}/user/bookmarks/${resourceId}`, {
+      method: 'POST',
+      headers,
+    });
+    
+    return res.ok || res.status === 409; // 409 = already bookmarked
+  } catch (error) {
+    console.error('API Error:', error);
+    return false;
+  }
+}
+
+export async function removeBookmark(resourceId: string): Promise<boolean> {
+  try {
+    const headers = getAuthHeaders();
+    const res = await fetch(`${API_URL}/user/bookmarks/${resourceId}`, {
+      method: 'DELETE',
+      headers,
+    });
+    
+    return res.ok || res.status === 204;
+  } catch (error) {
+    console.error('API Error:', error);
+    return false;
+  }
+}
+
+// Progress API
+export async function getProgress(): Promise<{ 
+  data: Array<{
+    resource: Resource;
+    completed: boolean;
+    completedAt: string | null;
+  }>;
+  stats: {
+    completed: number;
+    inProgress: number;
+    total: number;
+  };
+}> {
+  try {
+    const headers = getAuthHeaders();
+    const res = await fetch(`${API_URL}/user/progress`, { headers });
+    
+    if (res.status === 401) {
+      return { data: [], stats: { completed: 0, inProgress: 0, total: 0 } };
+    }
+    
+    if (!res.ok) throw new Error('Failed to fetch progress');
+    return res.json();
+  } catch (error) {
+    console.error('API Error:', error);
+    return { data: [], stats: { completed: 0, inProgress: 0, total: 0 } };
+  }
+}
+
+export async function getProgressMap(): Promise<Record<string, boolean>> {
+  try {
+    const headers = getAuthHeaders();
+    const res = await fetch(`${API_URL}/user/progress/ids`, { headers });
+    
+    if (res.status === 401) {
+      return {};
+    }
+    
+    if (!res.ok) throw new Error('Failed to fetch progress map');
+    const data = await res.json();
+    return data.progress || {};
+  } catch (error) {
+    console.error('API Error:', error);
+    return {};
+  }
+}
+
+export async function updateProgress(resourceId: string, completed: boolean): Promise<boolean> {
+  try {
+    const headers = getAuthHeaders();
+    const res = await fetch(`${API_URL}/user/progress/${resourceId}`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ completed }),
+    });
+    
+    return res.ok;
+  } catch (error) {
+    console.error('API Error:', error);
+    return false;
+  }
+}
+
+export async function removeProgress(resourceId: string): Promise<boolean> {
+  try {
+    const headers = getAuthHeaders();
+    const res = await fetch(`${API_URL}/user/progress/${resourceId}`, {
+      method: 'DELETE',
+      headers,
+    });
+    
+    return res.ok || res.status === 204;
+  } catch (error) {
+    console.error('API Error:', error);
+    return false;
   }
 }

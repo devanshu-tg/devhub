@@ -19,6 +19,7 @@ app.use(express.json());
 app.use('/api/resources', require('./routes/resources'));
 app.use('/api/chat', require('./routes/chat'));
 app.use('/api/pathfinder', require('./routes/pathfinder'));
+app.use('/api/user', require('./routes/user'));
 
 // Health check
 app.get('/api/health', (req, res) => {

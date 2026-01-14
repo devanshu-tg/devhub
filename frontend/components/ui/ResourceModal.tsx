@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useCallback } from "react";
-import { X, ExternalLink, Clock, Play, FileText, BookOpen, Code } from "lucide-react";
+import { X, ExternalLink, Clock, Play, FileText, BookOpen, Code, Bookmark } from "lucide-react";
 import clsx from "clsx";
 import type { Resource } from "@/lib/api";
 
@@ -9,6 +9,8 @@ interface ResourceModalProps {
   resource: Resource | null;
   isOpen: boolean;
   onClose: () => void;
+  isBookmarked?: boolean;
+  onToggleBookmark?: (resourceId: string, e: React.MouseEvent) => void;
 }
 
 const typeIcons: Record<string, typeof FileText> = {
@@ -32,7 +34,7 @@ function getYouTubeId(url: string): string | null {
   return null;
 }
 
-export default function ResourceModal({ resource, isOpen, onClose }: ResourceModalProps) {
+export default function ResourceModal({ resource, isOpen, onClose, isBookmarked, onToggleBookmark }: ResourceModalProps) {
   // Handle ESC key
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === "Escape") onClose();
@@ -138,8 +140,8 @@ export default function ResourceModal({ resource, isOpen, onClose }: ResourceMod
               </div>
             )}
 
-            {/* Action Button */}
-            <div className="pt-4">
+            {/* Action Buttons */}
+            <div className="pt-4 flex items-center gap-3">
               <a
                 href={resource.url}
                 target="_blank"
@@ -149,6 +151,20 @@ export default function ResourceModal({ resource, isOpen, onClose }: ResourceMod
                 Open Resource
                 <ExternalLink className="w-4 h-4" />
               </a>
+              {onToggleBookmark && (
+                <button
+                  onClick={(e) => onToggleBookmark(resource.id, e)}
+                  className={clsx(
+                    "inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all",
+                    isBookmarked 
+                      ? "bg-tiger-orange/20 text-tiger-orange border border-tiger-orange" 
+                      : "bg-themed-tertiary text-themed-secondary hover:text-themed border border-themed hover:border-tiger-orange/50"
+                  )}
+                >
+                  <Bookmark className={clsx("w-4 h-4", isBookmarked && "fill-current")} />
+                  {isBookmarked ? "Bookmarked" : "Bookmark"}
+                </button>
+              )}
             </div>
           </div>
         </div>

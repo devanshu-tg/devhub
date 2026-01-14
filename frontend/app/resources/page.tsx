@@ -13,10 +13,13 @@ import {
   Clock,
   Loader2,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Bookmark
 } from "lucide-react";
 import clsx from "clsx";
-import { getResources, type Resource } from "@/lib/api";
+import toast from "react-hot-toast";
+import { getResources, getBookmarkIds, addBookmark, removeBookmark, type Resource } from "@/lib/api";
+import { useAuth } from "@/components/AuthProvider";
 import ResourceModal from "@/components/ui/ResourceModal";
 
 const ITEMS_PER_PAGE = 9;
@@ -35,6 +38,7 @@ const typeIcons: Record<string, typeof FileText> = {
 };
 
 export default function ResourcesPage() {
+  const { user } = useAuth();
   const [resources, setResources] = useState<Resource[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -51,6 +55,9 @@ export default function ResourcesPage() {
   // Modal
   const [selectedResource, setSelectedResource] = useState<Resource | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  // Bookmarks
+  const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set());
 
   const fetchResources = useCallback(async () => {
     setLoading(true);
@@ -77,6 +84,75 @@ export default function ResourcesPage() {
     }, 300);
     return () => clearTimeout(debounce);
   }, [fetchResources]);
+
+  // Fetch bookmarks when user is authenticated
+  useEffect(() => {
+    const fetchBookmarks = async () => {
+      if (user) {
+        try {
+          const ids = await getBookmarkIds();
+          setBookmarkedIds(new Set(ids));
+        } catch (error) {
+          console.error('Failed to fetch bookmarks:', error);
+        }
+      } else {
+        setBookmarkedIds(new Set());
+      }
+    };
+    fetchBookmarks();
+  }, [user]);
+
+  // Toggle bookmark
+  const handleBookmarkToggle = async (resourceId: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card click
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/40d92828-9f17-455f-a0e1-01c5e52c9c7a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'resources/page.tsx:handleBookmarkToggle',message:'Bookmark button clicked',data:{resourceId,hasUser:!!user},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'I'})}).catch(()=>{});
+    // #endregion
+    
+    if (!user) {
+      toast.error("Sign in to bookmark resources");
+      return;
+    }
+
+    const isCurrentlyBookmarked = bookmarkedIds.has(resourceId);
+    
+    // Optimistic update
+    setBookmarkedIds(prev => {
+      const newSet = new Set(prev);
+      if (isCurrentlyBookmarked) {
+        newSet.delete(resourceId);
+      } else {
+        newSet.add(resourceId);
+      }
+      return newSet;
+    });
+
+    try {
+      // Make API call
+      const success = isCurrentlyBookmarked 
+        ? await removeBookmark(resourceId)
+        : await addBookmark(resourceId);
+
+      if (success) {
+        toast.success(isCurrentlyBookmarked ? "Bookmark removed" : "Bookmark added!");
+      } else {
+        throw new Error("API call failed");
+      }
+    } catch (error) {
+      // Revert on failure
+      setBookmarkedIds(prev => {
+        const newSet = new Set(prev);
+        if (isCurrentlyBookmarked) {
+          newSet.add(resourceId);
+        } else {
+          newSet.delete(resourceId);
+        }
+        return newSet;
+      });
+      toast.error("Failed to save bookmark. Please try again.");
+    }
+  };
 
   // Pagination calculations
   const totalPages = Math.ceil(resources.length / ITEMS_PER_PAGE);
@@ -197,17 +273,35 @@ export default function ResourcesPage() {
             {paginatedResources.map((resource, index) => {
               const TypeIcon = typeIcons[resource.type] || FileText;
               
+              const isBookmarked = bookmarkedIds.has(resource.id);
+              
               return viewMode === "grid" ? (
                 // Grid Card
-                <button
+                <div
                   key={resource.id}
-                  onClick={(e) => handleResourceClick(resource, e)}
-                  className="group rounded-2xl bg-themed-secondary border border-themed overflow-hidden hover:border-tiger-orange/30 transition-all card-hover text-left"
+                  className="group rounded-2xl bg-themed-secondary border border-themed overflow-hidden hover:border-tiger-orange/30 transition-all card-hover text-left cursor-pointer"
                   style={{ animationDelay: `${index * 50}ms` }}
+                  onClick={(e) => handleResourceClick(resource, e)}
                 >
                   {/* Thumbnail */}
                   <div className="relative aspect-video bg-themed-tertiary overflow-hidden">
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent z-10"></div>
+                    {/* Bookmark Button */}
+                    {user && (
+                      <button
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onClick={(e) => handleBookmarkToggle(resource.id, e)}
+                        className={clsx(
+                          "absolute top-3 right-3 z-30 p-2 rounded-lg transition-all",
+                          isBookmarked 
+                            ? "bg-tiger-orange text-white" 
+                            : "bg-black/40 text-white/80 hover:bg-black/60 hover:text-white"
+                        )}
+                        title={isBookmarked ? "Remove bookmark" : "Add bookmark"}
+                      >
+                        <Bookmark className={clsx("w-4 h-4", isBookmarked && "fill-current")} />
+                      </button>
+                    )}
                     <div className="absolute bottom-3 left-3 z-20 flex items-center gap-2">
                       <span className={clsx(
                         "badge",
@@ -244,13 +338,13 @@ export default function ResourcesPage() {
                       {resource.description}
                     </p>
                   </div>
-                </button>
+                </div>
               ) : (
                 // List Item
-                <button
+                <div
                   key={resource.id}
                   onClick={(e) => handleResourceClick(resource, e)}
-                  className="group flex gap-4 p-4 rounded-xl bg-themed-secondary border border-themed hover:border-tiger-orange/30 transition-all w-full text-left"
+                  className="group flex gap-4 p-4 rounded-xl bg-themed-secondary border border-themed hover:border-tiger-orange/30 transition-all w-full text-left cursor-pointer"
                 >
                   <div className="w-12 h-12 rounded-xl bg-themed-tertiary flex items-center justify-center flex-shrink-0">
                     <TypeIcon className="w-6 h-6 text-tiger-orange" />
@@ -265,6 +359,22 @@ export default function ResourcesPage() {
                     <p className="text-sm text-themed-muted line-clamp-1">{resource.description}</p>
                   </div>
                   <div className="flex items-center gap-3 flex-shrink-0">
+                    {/* Bookmark Button */}
+                    {user && (
+                      <button
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onClick={(e) => handleBookmarkToggle(resource.id, e)}
+                        className={clsx(
+                          "p-2 rounded-lg transition-all",
+                          isBookmarked 
+                            ? "bg-tiger-orange text-white" 
+                            : "text-themed-muted hover:text-tiger-orange hover:bg-tiger-orange/10"
+                        )}
+                        title={isBookmarked ? "Remove bookmark" : "Add bookmark"}
+                      >
+                        <Bookmark className={clsx("w-4 h-4", isBookmarked && "fill-current")} />
+                      </button>
+                    )}
                     <span className={clsx(
                       "badge",
                       resource.skillLevel === "beginner" && "badge-beginner",
@@ -275,7 +385,7 @@ export default function ResourcesPage() {
                     </span>
                     <span className="text-xs text-themed-muted">{resource.duration}</span>
                   </div>
-                </button>
+                </div>
               );
             })}
           </div>
@@ -344,6 +454,8 @@ export default function ResourcesPage() {
         resource={selectedResource}
         isOpen={isModalOpen}
         onClose={closeModal}
+        isBookmarked={selectedResource ? bookmarkedIds.has(selectedResource.id) : false}
+        onToggleBookmark={user ? handleBookmarkToggle : undefined}
       />
     </div>
   );

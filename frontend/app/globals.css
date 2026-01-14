@@ -24,6 +24,11 @@
   --scrollbar-track: #F4F4F5;
   --scrollbar-thumb: #D4D4D8;
   --scrollbar-thumb-hover: #A1A1AA;
+  
+  /* Toast styles */
+  --toast-bg: #FFFFFF;
+  --toast-text: #18181B;
+  --toast-border: #E4E4E7;
 }
 
 .dark {
@@ -42,6 +47,11 @@
   --scrollbar-track: #18181B;
   --scrollbar-thumb: #3F3F46;
   --scrollbar-thumb-hover: #52525B;
+  
+  /* Toast styles */
+  --toast-bg: #18181B;
+  --toast-text: #FAFAFA;
+  --toast-border: #3F3F46;
 }
 
 /* ===== BASE STYLES ===== */
