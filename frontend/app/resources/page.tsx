@@ -285,6 +285,20 @@ export default function ResourcesPage() {
                 >
                   {/* Thumbnail */}
                   <div className="relative aspect-video bg-themed-tertiary overflow-hidden">
+                    {resource.thumbnail && (
+                      <img 
+                        src={resource.thumbnail} 
+                        alt={resource.title}
+                        className="absolute inset-0 w-full h-full object-cover"
+                        onError={(e) => {
+                          // Fallback to hqdefault if maxresdefault doesn't exist
+                          const target = e.target as HTMLImageElement;
+                          if (target.src.includes('maxresdefault')) {
+                            target.src = target.src.replace('maxresdefault', 'hqdefault');
+                          }
+                        }}
+                      />
+                    )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent z-10"></div>
                     {/* Bookmark Button */}
                     {user && (
