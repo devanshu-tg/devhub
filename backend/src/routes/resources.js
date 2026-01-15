@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { supabase } = require('../config/supabase');
 const { fetchTigerGraphVideos } = require('../services/youtube');
+const { syncYouTubeVideos } = require('../services/scheduler');
 
 // Mock data fallback when Supabase is not configured
 const mockResources = [
@@ -255,85 +256,12 @@ router.delete('/:id', async (req, res) => {
 
 // POST /api/resources/sync-youtube - Sync videos from TigerGraph YouTube channel
 router.post('/sync-youtube', async (req, res) => {
-  const apiKey = process.env.YOUTUBE_API_KEY;
-  
-  if (!apiKey) {
-    return res.status(500).json({ 
-      error: 'YouTube API key not configured. Add YOUTUBE_API_KEY to your .env file.' 
-    });
-  }
-  
-  if (!supabase) {
-    return res.status(500).json({ 
-      error: 'Database not configured' 
-    });
-  }
-  
   try {
-    console.log('🚀 Starting YouTube sync...');
-    
-    // Fetch videos from YouTube
-    const maxVideos = req.body.maxVideos || 100;
-    const videos = await fetchTigerGraphVideos(apiKey, maxVideos);
-    
-    console.log(`📦 Upserting ${videos.length} videos to database...`);
-    
-    // Upsert videos (insert new, update existing based on youtube_video_id)
-    let inserted = 0;
-    let updated = 0;
-    let errors = 0;
-    
-    for (const video of videos) {
-      try {
-        // Check if video already exists
-        const { data: existing } = await supabase
-          .from('resources')
-          .select('id')
-          .eq('youtube_video_id', video.youtube_video_id)
-          .single();
-        
-        if (existing) {
-          // Update existing
-          const { error } = await supabase
-            .from('resources')
-            .update({
-              title: video.title,
-              description: video.description,
-              thumbnail: video.thumbnail,
-              duration: video.duration,
-              skill_level: video.skill_level,
-              use_cases: video.use_cases,
-            })
-            .eq('youtube_video_id', video.youtube_video_id);
-          
-          if (error) throw error;
-          updated++;
-        } else {
-          // Insert new
-          const { error } = await supabase
-            .from('resources')
-            .insert([video]);
-          
-          if (error) throw error;
-          inserted++;
-        }
-      } catch (err) {
-        console.error(`Failed to upsert video ${video.youtube_video_id}:`, err.message);
-        errors++;
-      }
-    }
-    
-    console.log(`✅ Sync complete: ${inserted} inserted, ${updated} updated, ${errors} errors`);
-    
+    console.log('🚀 [Manual] Starting YouTube sync...');
+    await syncYouTubeVideos();
     res.json({
       success: true,
-      message: 'YouTube sync completed',
-      stats: {
-        total: videos.length,
-        inserted,
-        updated,
-        errors,
-      }
+      message: 'YouTube sync completed. Check server logs for details.'
     });
   } catch (error) {
     console.error('YouTube sync error:', error);

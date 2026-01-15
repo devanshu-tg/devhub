@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const { startScheduler } = require('./services/scheduler');
 
 // Load environment variables
 dotenv.config();
@@ -35,4 +36,7 @@ app.use((err, req, res, next) => {
 // Start server
 app.listen(PORT, () => {
   console.log(`🚀 DevHub API running on http://localhost:${PORT}`);
+  
+  // Start YouTube sync scheduler
+  startScheduler();
 });
