@@ -34,9 +34,40 @@ export interface ChatMessage {
   content: string;
 }
 
+export interface QuickReply {
+  text: string;
+  action: string;
+}
+
+export interface ChatResource {
+  id: string;
+  title: string;
+  description: string;
+  type: 'video' | 'tutorial' | 'docs' | 'blog';
+  skillLevel: 'beginner' | 'intermediate' | 'advanced';
+  url: string;
+  thumbnail: string | null;
+  duration: string | null;
+}
+
+export interface ChatContext {
+  state?: string;
+  topic?: string | null;
+  topics?: string[];
+  skillLevel?: string | null;
+  goal?: string | null;
+  learningGoal?: string | null;
+  background?: string | null;
+}
+
 export interface ChatResponse {
   response: string;
-  citations: Array<{
+  resources: ChatResource[];
+  quickReplies: QuickReply[];
+  intent: string;
+  context: ChatContext;
+  // Legacy support
+  citations?: Array<{
     title: string;
     url: string;
     type: string;
@@ -99,13 +130,18 @@ export async function getResource(id: string): Promise<Resource | null> {
 // Chat API
 export async function sendChatMessage(
   message: string,
-  history: ChatMessage[] = []
+  history: ChatMessage[] = [],
+  conversationContext?: ChatContext
 ): Promise<ChatResponse> {
   try {
     const res = await fetch(`${API_URL}/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message, history }),
+      body: JSON.stringify({ 
+        message, 
+        history,
+        conversationContext: conversationContext || {}
+      }),
     });
     
     if (!res.ok) throw new Error('Failed to send message');
@@ -114,7 +150,13 @@ export async function sendChatMessage(
     console.error('API Error:', error);
     return {
       response: "I'm having trouble connecting to the server. Please try again later.",
-      citations: [],
+      resources: [],
+      quickReplies: [
+        { text: "Try again", action: "retry" },
+        { text: "Start over", action: "reset" }
+      ],
+      intent: "error",
+      context: conversationContext || { state: 'idle', topic: null, skillLevel: null, goal: null },
     };
   }
 }

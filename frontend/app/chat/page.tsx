@@ -5,43 +5,132 @@ import {
   Send, 
   Sparkles, 
   User, 
-  ExternalLink, 
-  BookOpen, 
   Lightbulb,
-  RefreshCw
+  RefreshCw,
+  BookOpen,
+  Play,
+  FileText,
+  Code,
+  Target,
+  Zap,
+  Shield,
+  Brain,
+  Database,
+  RotateCcw
 } from "lucide-react";
 import clsx from "clsx";
-import { sendChatMessage, type ChatMessage as APIChatMessage } from "@/lib/api";
+import { 
+  sendChatMessage, 
+  type ChatMessage as APIChatMessage,
+  type ChatResource,
+  type QuickReply
+} from "@/lib/api";
+import ChatResourceCard from "@/components/ui/ChatResourceCard";
+import { useAuth } from "@/components/AuthProvider";
+
+// Conversation context type matching backend
+interface ConversationContext {
+  state: string;
+  topic: string | null;
+  skillLevel: string | null;
+  goal: string | null;
+  background: string | null;
+  shownResourceIds?: string[]; // Track shown resources for "show more"
+}
 
 interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
-  citations?: Array<{
-    title: string;
-    url: string;
-    type: string;
-  }>;
+  resources?: ChatResource[];
+  quickReplies?: QuickReply[];
+  intent?: string;
+  context?: ConversationContext;
 }
 
-const suggestedPrompts = [
-  "What's the best way to get started with TigerGraph?",
-  "Show me fraud detection tutorials",
-  "How do I write my first GSQL query?",
-  "Explain GraphRAG with TigerGraph",
+const initialWelcomeQuickReplies: QuickReply[] = [
+  { text: "GSQL Query Language", action: "topic_gsql" },
+  { text: "Fraud Detection", action: "topic_fraud" },
+  { text: "GraphRAG & AI", action: "topic_graphrag" },
+  { text: "Recommendation Engines", action: "topic_recommendations" },
+  { text: "Schema Design", action: "topic_schema" },
+  { text: "Something else", action: "topic_other" }
+];
+
+const topicCards = [
+  { 
+    id: "gsql", 
+    title: "GSQL Query Language", 
+    description: "Learn TigerGraph's powerful query language",
+    icon: Code,
+    color: "from-blue-500 to-blue-700"
+  },
+  { 
+    id: "fraud", 
+    title: "Fraud Detection", 
+    description: "Build real-time fraud detection systems",
+    icon: Shield,
+    color: "from-red-500 to-red-700"
+  },
+  { 
+    id: "graphrag", 
+    title: "GraphRAG & AI", 
+    description: "Combine graphs with LLMs",
+    icon: Brain,
+    color: "from-purple-500 to-purple-700"
+  },
+  { 
+    id: "recommendations", 
+    title: "Recommendations", 
+    description: "Create personalized recommendations",
+    icon: Zap,
+    color: "from-orange-500 to-orange-700"
+  },
+  { 
+    id: "schema", 
+    title: "Schema Design", 
+    description: "Model your data effectively",
+    icon: Database,
+    color: "from-green-500 to-green-700"
+  },
+  { 
+    id: "cloud", 
+    title: "TigerGraph Cloud", 
+    description: "Deploy and manage in the cloud",
+    icon: Target,
+    color: "from-cyan-500 to-cyan-700"
+  }
 ];
 
 export default function ChatPage() {
+  const { user } = useAuth();
+  
+  // Conversation context - tracks what we know about the user
+  const [conversationContext, setConversationContext] = useState<ConversationContext>({
+    state: 'idle',
+    topic: null,
+    skillLevel: null,
+    goal: null,
+    background: null,
+    shownResourceIds: []
+  });
+  
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome",
       role: "assistant",
-      content: "👋 Welcome to DevHub AI! I'm here to help you navigate TigerGraph resources and answer your questions. What would you like to learn today?",
-      citations: [],
+      content: `Hey there! 👋 Welcome to TigerGraph Learning Assistant!
+
+I'm here to help you master graph databases. Instead of overwhelming you with resources, let me understand what you need first.
+
+**What topic interests you today?**`,
+      quickReplies: initialWelcomeQuickReplies,
     },
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set());
+  const [expandedResources, setExpandedResources] = useState<Set<string>>(new Set()); // Track which messages have expanded resources
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -52,17 +141,17 @@ export default function ChatPage() {
     scrollToBottom();
   }, [messages]);
 
-  const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+  const handleSend = async (messageText?: string) => {
+    const textToSend = messageText || input.trim();
+    if (!textToSend || isLoading) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
       role: "user",
-      content: input.trim(),
+      content: textToSend,
     };
 
     setMessages((prev) => [...prev, userMessage]);
-    const currentInput = input.trim();
     setInput("");
     setIsLoading(true);
 
@@ -72,13 +161,22 @@ export default function ChatPage() {
         .filter(m => m.id !== "welcome")
         .map(m => ({ role: m.role, content: m.content }));
 
-      const response = await sendChatMessage(currentInput, history);
+      // Send current conversation context to backend
+      const response = await sendChatMessage(textToSend, history, conversationContext);
+
+      // Update conversation context from response
+      if (response.context) {
+        setConversationContext(response.context as ConversationContext);
+      }
 
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
         content: response.response,
-        citations: response.citations,
+        resources: response.resources,
+        quickReplies: response.quickReplies,
+        intent: response.intent,
+        context: response.context as ConversationContext,
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
@@ -87,13 +185,88 @@ export default function ChatPage() {
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: "Sorry, I encountered an error. Please try again.",
-        citations: [],
+        content: "I'm having trouble connecting right now. Please try again in a moment.",
+        quickReplies: [
+          { text: "Try again", action: "retry" },
+          { text: "Start over", action: "reset" }
+        ],
       };
       setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleQuickReply = (reply: QuickReply) => {
+    // Map actions to natural language queries
+    const actionMessages: Record<string, string> = {
+      // Topic selections
+      topic_gsql: "I want to learn GSQL",
+      topic_fraud: "I'm interested in fraud detection",
+      topic_graphrag: "Tell me about GraphRAG",
+      topic_recommendations: "I want to build a recommendation engine",
+      topic_schema: "I want to learn schema design",
+      topic_cloud: "I want to learn about TigerGraph Cloud",
+      topic_other: "I'm interested in something else",
+      
+      // Skill level selections
+      skill_beginner: "I'm a complete beginner",
+      skill_knows_sql: "I know SQL but new to graphs",
+      skill_intermediate: "I have some graph experience",
+      skill_advanced: "I'm an advanced user",
+      
+      // Goal selections
+      goal_basics: "I want to learn the basics",
+      goal_project: "I want to build a project",
+      goal_queries: "I want to write queries",
+      goal_examples: "Show me examples",
+      goal_concepts: "Help me understand the concepts",
+      goal_technical: "I want a technical deep dive",
+      
+      // Follow-up actions
+      more_resources: "Show me more resources",
+      explain_concept: "Can you explain a concept?",
+      new_topic: "I want to explore a different topic",
+      done: "Thanks, I'm done for now!",
+      show_resources: "Show me resources for this",
+      explain_more: "Can you explain more?",
+      explain_simple: "Explain it in simple terms",
+      show_examples: "Show me practical examples",
+      
+      // Other actions
+      has_project: "I'm working on a specific project",
+      has_problem: "I'm trying to solve a problem",
+      exploring: "I'm just exploring what's possible",
+      retry: "Let's try that again",
+      reset: "Let's start over",
+      
+      // Legacy actions (for compatibility)
+      get_started: "I want to get started with TigerGraph",
+      learn_gsql: "I want to learn GSQL",
+      explore_use_cases: "What use cases can I build?",
+      browse_all: "Show me all available resources",
+    };
+    
+    // Handle reset action specially
+    if (reply.action === "reset") {
+      handleReset();
+      return;
+    }
+    
+    const messageText = actionMessages[reply.action] || reply.text;
+    handleSend(messageText);
+  };
+
+  const handleTopicClick = (topicId: string) => {
+    const topicMessages: Record<string, string> = {
+      gsql: "I want to learn GSQL query language",
+      fraud: "I'm interested in fraud detection with TigerGraph",
+      graphrag: "Tell me about GraphRAG and how to use it",
+      recommendations: "I want to build a recommendation engine",
+      schema: "I want to learn about graph schema design",
+      cloud: "Tell me about TigerGraph Cloud",
+    };
+    handleSend(topicMessages[topicId] || `I want to learn about ${topicId}`);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -103,95 +276,233 @@ export default function ChatPage() {
     }
   };
 
+  const handleBookmarkChange = (resourceId: string, bookmarked: boolean) => {
+    setBookmarkedIds(prev => {
+      const newSet = new Set(prev);
+      if (bookmarked) {
+        newSet.add(resourceId);
+      } else {
+        newSet.delete(resourceId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleReset = () => {
+    setConversationContext({
+      state: 'idle',
+      topic: null,
+      skillLevel: null,
+      goal: null,
+      background: null,
+      shownResourceIds: []
+    });
+    setMessages([
+      {
+        id: "welcome-" + Date.now(),
+        role: "assistant",
+        content: `Let's start fresh! 👋
+
+**What topic would you like to explore?**`,
+        quickReplies: initialWelcomeQuickReplies,
+      },
+    ]);
+  };
+
+  // Show context indicator when we have info about the user
+  const renderContextIndicator = () => {
+    if (!conversationContext.topic && !conversationContext.skillLevel) return null;
+    
+    const parts = [];
+    if (conversationContext.topic) {
+      const topicNames: Record<string, string> = {
+        gsql: 'GSQL',
+        fraud: 'Fraud Detection',
+        graphrag: 'GraphRAG',
+        recommendations: 'Recommendations',
+        schema: 'Schema Design',
+        cloud: 'TigerGraph Cloud',
+        algorithms: 'Algorithms',
+        python: 'pyTigerGraph',
+        getting_started: 'Getting Started'
+      };
+      parts.push(topicNames[conversationContext.topic] || conversationContext.topic);
+    }
+    if (conversationContext.skillLevel) {
+      parts.push(conversationContext.skillLevel);
+    }
+    
+    return (
+      <div className="flex items-center gap-2 text-xs text-themed-muted mb-2">
+        <Target className="w-3 h-3" />
+        <span>Learning: {parts.join(' • ')}</span>
+        <button
+          onClick={handleReset}
+          className="ml-2 p-1 hover:bg-themed-tertiary rounded-md transition-colors"
+          title="Start over"
+        >
+          <RotateCcw className="w-3 h-3" />
+        </button>
+      </div>
+    );
+  };
+
+  const renderMessage = (message: Message) => {
+    const isUser = message.role === "user";
+    
+    return (
+      <div
+        key={message.id}
+        className={clsx(
+          "flex gap-4",
+          isUser ? "flex-row-reverse" : ""
+        )}
+      >
+        {/* Avatar */}
+        <div
+          className={clsx(
+            "w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0",
+            isUser
+              ? "bg-themed-tertiary"
+              : "bg-gradient-to-br from-tiger-orange to-amber-500"
+          )}
+        >
+          {isUser ? (
+            <User className="w-5 h-5 text-themed-secondary" />
+          ) : (
+            <Sparkles className="w-5 h-5 text-white" />
+          )}
+        </div>
+
+        {/* Message Content */}
+        <div
+          className={clsx(
+            "max-w-[85%] space-y-4",
+            isUser ? "text-right" : ""
+          )}
+        >
+          {/* Text Content */}
+          <div
+            className={clsx(
+              "inline-block p-4 rounded-2xl text-sm leading-relaxed",
+              isUser
+                ? "bg-tiger-orange text-white rounded-tr-none"
+                : "bg-themed-secondary text-themed rounded-tl-none border border-themed"
+            )}
+          >
+            <div 
+              className="whitespace-pre-wrap prose prose-sm dark:prose-invert max-w-none"
+              dangerouslySetInnerHTML={{ 
+                __html: message.content
+                  .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                  .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                  .replace(/•/g, '<span class="text-tiger-orange">•</span>')
+                  .replace(/👋/g, '<span class="inline-block animate-wave">👋</span>')
+              }}
+            />
+          </div>
+
+          {/* Resource Cards - Only show when we have resources */}
+          {message.resources && message.resources.length > 0 && (
+            <div className="space-y-3">
+              <p className="text-xs text-themed-muted flex items-center gap-1">
+                <BookOpen className="w-3 h-3" />
+                Your Personalized Resources ({message.resources.length})
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {(expandedResources.has(message.id) 
+                  ? message.resources 
+                  : message.resources.slice(0, 4)
+                ).map((resource) => (
+                  <ChatResourceCard
+                    key={resource.id}
+                    resource={resource}
+                    isBookmarked={bookmarkedIds.has(resource.id)}
+                    onBookmarkChange={handleBookmarkChange}
+                    compact={message.resources!.length > 2}
+                  />
+                ))}
+              </div>
+              {message.resources.length > 4 && (
+                <button
+                  onClick={() => {
+                    setExpandedResources(prev => {
+                      const newSet = new Set(prev);
+                      if (newSet.has(message.id)) {
+                        newSet.delete(message.id);
+                      } else {
+                        newSet.add(message.id);
+                      }
+                      return newSet;
+                    });
+                  }}
+                  className="text-xs text-tiger-orange hover:underline"
+                >
+                  {expandedResources.has(message.id) 
+                    ? "Show less" 
+                    : `+ ${message.resources.length - 4} more resources`}
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Quick Replies */}
+          {message.quickReplies && message.quickReplies.length > 0 && !isUser && (
+            <div className="flex flex-wrap gap-2 pt-2">
+              {message.quickReplies.map((reply, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => handleQuickReply(reply)}
+                  className="px-4 py-2 rounded-xl bg-themed-tertiary border border-themed text-sm text-themed-secondary hover:border-tiger-orange hover:text-tiger-orange transition-all"
+                >
+                  {reply.text}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="max-w-4xl mx-auto h-[calc(100vh-8rem)] flex flex-col animate-fade-in">
       {/* Header */}
       <div className="flex items-center gap-4 pb-6 border-b border-themed">
         <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-tiger-orange to-amber-500 flex items-center justify-center">
-          <Sparkles className="w-6 h-6 text-themed" />
+          <Sparkles className="w-6 h-6 text-white" />
         </div>
-        <div>
-          <h1 className="text-2xl font-bold text-themed">AI Resource Chat</h1>
-          <p className="text-themed-muted text-sm">Powered by Gemini + TigerGraph Knowledge Base</p>
+        <div className="flex-1">
+          <h1 className="text-2xl font-bold text-themed">TigerGraph Learning Assistant</h1>
+          <p className="text-themed-muted text-sm">
+            Your AI guide to mastering graph databases
+            {user && <span className="text-tiger-orange"> • {user.email?.split('@')[0]}</span>}
+          </p>
         </div>
+        {/* Reset button in header */}
+        <button
+          onClick={handleReset}
+          className="p-2 rounded-lg bg-themed-tertiary border border-themed hover:border-tiger-orange transition-colors"
+          title="Start new conversation"
+        >
+          <RotateCcw className="w-5 h-5 text-themed-muted" />
+        </button>
+      </div>
+
+      {/* Context Indicator */}
+      <div className="pt-4">
+        {renderContextIndicator()}
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto py-6 space-y-6">
-        {messages.map((message) => (
-          <div
-            key={message.id}
-            className={clsx(
-              "flex gap-4",
-              message.role === "user" ? "flex-row-reverse" : ""
-            )}
-          >
-            {/* Avatar */}
-            <div
-              className={clsx(
-                "w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0",
-                message.role === "user"
-                  ? "bg-themed-tertiary"
-                  : "bg-gradient-to-br from-tiger-orange to-amber-500"
-              )}
-            >
-              {message.role === "user" ? (
-                <User className="w-5 h-5 text-themed-secondary" />
-              ) : (
-                <Sparkles className="w-5 h-5 text-themed" />
-              )}
-            </div>
-
-            {/* Message Content */}
-            <div
-              className={clsx(
-                "max-w-[80%] space-y-3",
-                message.role === "user" ? "text-right" : ""
-              )}
-            >
-              <div
-                className={clsx(
-                  "inline-block p-4 rounded-2xl text-sm leading-relaxed",
-                  message.role === "user"
-                    ? "bg-tiger-orange text-themed rounded-tr-none"
-                    : "bg-themed-secondary text-themed rounded-tl-none border border-themed"
-                )}
-              >
-                <p className="whitespace-pre-wrap">{message.content}</p>
-              </div>
-
-              {/* Citations */}
-              {message.citations && message.citations.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-xs text-themed-muted flex items-center gap-1">
-                    <BookOpen className="w-3 h-3" />
-                    Related Resources
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {message.citations.map((citation, idx) => (
-                      <a
-                        key={idx}
-                        href={citation.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-themed-tertiary border border-themed text-xs text-themed-secondary hover:border-tiger-orange hover:text-tiger-orange transition-all"
-                      >
-                        {citation.title}
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
+      <div className="flex-1 overflow-y-auto py-4 space-y-6">
+        {messages.map(renderMessage)}
 
         {/* Loading indicator */}
         {isLoading && (
           <div className="flex gap-4">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-tiger-orange to-amber-500 flex items-center justify-center flex-shrink-0">
-              <Sparkles className="w-5 h-5 text-themed" />
+              <Sparkles className="w-5 h-5 text-white" />
             </div>
             <div className="p-4 rounded-2xl rounded-tl-none bg-themed-secondary border border-themed">
               <div className="flex items-center gap-2">
@@ -205,23 +516,34 @@ export default function ChatPage() {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Suggested Prompts */}
-      {messages.length === 1 && (
-        <div className="pb-4">
-          <p className="text-xs text-themed-muted mb-3 flex items-center gap-1">
+      {/* Topic Cards (show only on welcome when no context) - compact version */}
+      {messages.length === 1 && !conversationContext.topic && (
+        <div className="pb-3">
+          <p className="text-xs text-themed-muted mb-2 flex items-center gap-1">
             <Lightbulb className="w-3 h-3" />
-            Try asking
+            Quick start
           </p>
           <div className="flex flex-wrap gap-2">
-            {suggestedPrompts.map((prompt) => (
-              <button
-                key={prompt}
-                onClick={() => setInput(prompt)}
-                className="px-4 py-2 rounded-xl bg-themed-secondary border border-themed text-sm text-themed-secondary hover:border-tiger-orange hover:text-themed transition-all"
-              >
-                {prompt}
-              </button>
-            ))}
+            {topicCards.map((topic) => {
+              const Icon = topic.icon;
+              return (
+                <button
+                  key={topic.id}
+                  onClick={() => handleTopicClick(topic.id)}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg bg-themed-secondary border border-themed hover:border-tiger-orange transition-all group"
+                >
+                  <div className={clsx(
+                    "w-6 h-6 rounded flex items-center justify-center bg-gradient-to-br",
+                    topic.color
+                  )}>
+                    <Icon className="w-3 h-3 text-white" />
+                  </div>
+                  <span className="text-sm text-themed group-hover:text-tiger-orange transition-colors">
+                    {topic.title}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
@@ -234,19 +556,19 @@ export default function ChatPage() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask about TigerGraph resources, concepts, or learning paths..."
+              placeholder="Ask about TigerGraph, GSQL, or any graph database topic..."
               rows={1}
-              className="w-full px-4 py-3 pr-12 rounded-xl bg-themed-secondary border border-themed text-themed placeholder-dark-400 resize-none focus:border-tiger-orange focus:ring-2 focus:ring-tiger-orange/20 transition-all"
+              className="w-full px-4 py-3 pr-12 rounded-xl bg-themed-secondary border border-themed text-themed placeholder-themed-muted resize-none focus:border-tiger-orange focus:ring-2 focus:ring-tiger-orange/20 transition-all"
               style={{ minHeight: "48px", maxHeight: "120px" }}
             />
           </div>
           <button
-            onClick={handleSend}
+            onClick={() => handleSend()}
             disabled={!input.trim() || isLoading}
             className={clsx(
               "px-4 py-3 rounded-xl font-medium transition-all flex items-center gap-2",
               input.trim() && !isLoading
-                ? "bg-tiger-orange text-themed hover:bg-tiger-orange-dark"
+                ? "bg-tiger-orange text-white hover:bg-tiger-orange-dark"
                 : "bg-themed-tertiary text-themed-muted cursor-not-allowed"
             )}
           >
@@ -254,7 +576,7 @@ export default function ChatPage() {
           </button>
         </div>
         <p className="text-xs text-themed-muted mt-2 text-center">
-          AI responses are generated based on TigerGraph documentation and resources
+          I'll ask a few questions to understand your needs, then recommend the best resources for you.
         </p>
       </div>
     </div>
