@@ -149,8 +149,10 @@ router.get('/', async (req, res) => {
           query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%`);
         }
         
+        // Order by type priority: video=1, tutorial=2, docs=3, blog=4, then alphabetically by title
         const { data, error } = await query
-          .order('created_at', { ascending: false })
+          .order('type', { ascending: true })
+          .order('title', { ascending: true })
           .range(page * pageSize, (page + 1) * pageSize - 1);
         
         if (error) throw error;
@@ -162,6 +164,18 @@ router.get('/', async (req, res) => {
         if (data.length < pageSize) break;
         page++;
       }
+      
+      // Sort by type priority: video first, then tutorial, then docs, then blog
+      const typePriority = { video: 1, tutorial: 2, docs: 3, blog: 4 };
+      allData.sort((a, b) => {
+        const priorityA = typePriority[a.type] || 5;
+        const priorityB = typePriority[b.type] || 5;
+        if (priorityA !== priorityB) {
+          return priorityA - priorityB;
+        }
+        // If same type, sort alphabetically by title
+        return a.title.localeCompare(b.title);
+      });
       
       res.json({
         data: allData.map(toCamelCase),
