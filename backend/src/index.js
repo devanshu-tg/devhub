@@ -1,10 +1,9 @@
+// Load environment variables FIRST before any other imports
+require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
-const dotenv = require('dotenv');
 const { startScheduler } = require('./services/scheduler');
-
-// Load environment variables
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;

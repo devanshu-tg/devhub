@@ -14,7 +14,16 @@ import {
   Loader2,
   ChevronLeft,
   ChevronRight,
-  Bookmark
+  Bookmark,
+  Database,
+  Cloud,
+  LayoutDashboard,
+  Brain,
+  LineChart,
+  Terminal,
+  Sparkles,
+  Network,
+  type LucideIcon
 } from "lucide-react";
 import clsx from "clsx";
 import toast from "react-hot-toast";
@@ -36,6 +45,143 @@ const typeIcons: Record<string, typeof FileText> = {
   docs: FileText,
   blog: Code,
 };
+
+// Doc category configurations for gradient thumbnails
+interface DocCategoryConfig {
+  icon: LucideIcon;
+  gradient: string;
+  pattern: string;
+}
+
+const docCategories: Record<string, DocCategoryConfig> = {
+  gsql: {
+    icon: Terminal,
+    gradient: "from-blue-600 via-blue-500 to-cyan-400",
+    pattern: "gsql-ref"
+  },
+  server: {
+    icon: Database,
+    gradient: "from-orange-600 via-orange-500 to-amber-400",
+    pattern: "tigergraph-server"
+  },
+  gui: {
+    icon: LayoutDashboard,
+    gradient: "from-purple-600 via-purple-500 to-pink-400",
+    pattern: "/gui/"
+  },
+  cloud: {
+    icon: Cloud,
+    gradient: "from-cyan-600 via-cyan-500 to-teal-400",
+    pattern: "/savanna/|/cloud/"
+  },
+  ml: {
+    icon: Brain,
+    gradient: "from-emerald-600 via-emerald-500 to-green-400",
+    pattern: "ml-workbench|graph-ml"
+  },
+  insights: {
+    icon: LineChart,
+    gradient: "from-rose-600 via-rose-500 to-pink-400",
+    pattern: "/insights/"
+  },
+  python: {
+    icon: Code,
+    gradient: "from-yellow-600 via-yellow-500 to-amber-400",
+    pattern: "pytigergraph"
+  },
+  graphql: {
+    icon: Network,
+    gradient: "from-fuchsia-600 via-fuchsia-500 to-purple-400",
+    pattern: "/graphql/"
+  },
+  default: {
+    icon: FileText,
+    gradient: "from-slate-600 via-slate-500 to-gray-400",
+    pattern: ""
+  }
+};
+
+// Helper to determine doc category from URL
+function getDocCategory(url: string): DocCategoryConfig {
+  const lowerUrl = url.toLowerCase();
+  
+  for (const [key, config] of Object.entries(docCategories)) {
+    if (key === 'default') continue;
+    if (config.pattern && new RegExp(config.pattern).test(lowerUrl)) {
+      return config;
+    }
+  }
+  return docCategories.default;
+}
+
+// Doc Thumbnail Component
+function DocThumbnail({ url, title }: { url: string; title: string }) {
+  const category = getDocCategory(url);
+  const Icon = category.icon;
+  
+  return (
+    <div className={`absolute inset-0 bg-gradient-to-br ${category.gradient} flex items-center justify-center overflow-hidden`}>
+      {/* Background pattern */}
+      <div className="absolute inset-0 opacity-10">
+        <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+              <path d="M 40 0 L 0 0 0 40" fill="none" stroke="white" strokeWidth="1"/>
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#grid)" />
+        </svg>
+      </div>
+      
+      {/* Decorative circles */}
+      <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-xl" />
+      <div className="absolute -bottom-10 -left-10 w-24 h-24 bg-white/10 rounded-full blur-xl" />
+      
+      {/* Icon */}
+      <div className="relative z-10 flex flex-col items-center gap-2">
+        <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-lg">
+          <Icon className="w-8 h-8 text-white" />
+        </div>
+        <span className="text-xs font-medium text-white/80 uppercase tracking-wider">
+          Documentation
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// Tutorial Thumbnail Component (for courses without images)
+function TutorialThumbnail({ title }: { title: string }) {
+  return (
+    <div className="absolute inset-0 bg-gradient-to-br from-tiger-orange via-orange-500 to-amber-400 flex items-center justify-center overflow-hidden">
+      {/* Background pattern - hexagons for graph theme */}
+      <div className="absolute inset-0 opacity-10">
+        <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <pattern id="hexagons" width="50" height="43.4" patternUnits="userSpaceOnUse" patternTransform="scale(1.5)">
+              <polygon points="25,0 50,14.4 50,43.4 25,57.7 0,43.4 0,14.4" fill="none" stroke="white" strokeWidth="1"/>
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#hexagons)" />
+        </svg>
+      </div>
+      
+      {/* Decorative elements */}
+      <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-xl" />
+      <div className="absolute -bottom-10 -left-10 w-24 h-24 bg-white/10 rounded-full blur-xl" />
+      
+      {/* Icon */}
+      <div className="relative z-10 flex flex-col items-center gap-2">
+        <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-lg">
+          <Sparkles className="w-8 h-8 text-white" />
+        </div>
+        <span className="text-xs font-medium text-white/80 uppercase tracking-wider">
+          Course
+        </span>
+      </div>
+    </div>
+  );
+}
 
 export default function ResourcesPage() {
   const { user } = useAuth();
@@ -285,7 +431,11 @@ export default function ResourcesPage() {
                 >
                   {/* Thumbnail */}
                   <div className="relative aspect-video bg-themed-tertiary overflow-hidden">
-                    {resource.thumbnail && (
+                    {resource.type === 'docs' ? (
+                      <DocThumbnail url={resource.url} title={resource.title} />
+                    ) : resource.type === 'tutorial' && (!resource.thumbnail || resource.thumbnail.includes('tigergraph.com/wp-content')) ? (
+                      <TutorialThumbnail title={resource.title} />
+                    ) : resource.thumbnail ? (
                       <img 
                         src={resource.thumbnail} 
                         alt={resource.title}
@@ -298,8 +448,10 @@ export default function ResourcesPage() {
                           }
                         }}
                       />
+                    ) : null}
+                    {resource.type !== 'docs' && resource.type !== 'tutorial' && (
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent z-10"></div>
                     )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent z-10"></div>
                     {/* Bookmark Button */}
                     {user && (
                       <button

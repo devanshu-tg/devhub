@@ -1,270 +1,399 @@
-// Real TigerGraph learning resources for seeding
-const seedResources = [
-  // Getting Started
-  {
-    title: 'Getting Started with TigerGraph Cloud',
-    description: 'Complete guide to setting up your first TigerGraph Cloud instance. Learn how to create an account, provision a cluster, and connect to your graph database.',
-    type: 'documentation',
-    url: 'https://docs.tigergraph.com/cloud/start/overview',
-    skillLevel: 'beginner',
-    useCases: ['getting-started'],
-    duration: '15 min read',
-    featured: true,
-  },
-  {
-    title: 'TigerGraph GraphStudio Tutorial',
-    description: 'Learn to use GraphStudio, the visual IDE for TigerGraph. Design schemas, load data, write queries, and explore your graph visually.',
-    type: 'tutorial',
-    url: 'https://docs.tigergraph.com/gui/current/graphstudio/overview',
-    skillLevel: 'beginner',
-    useCases: ['getting-started', 'graphstudio'],
-    duration: '30 min',
-    featured: true,
-  },
-  {
-    title: 'What is a Graph Database? (TigerGraph Explained)',
-    description: 'Understand the fundamentals of graph databases and why they outperform relational databases for connected data analysis.',
-    type: 'video',
-    url: 'https://www.youtube.com/watch?v=bqIBVSk0gKA',
-    skillLevel: 'beginner',
-    useCases: ['getting-started'],
-    thumbnail: 'https://img.youtube.com/vi/bqIBVSk0gKA/maxresdefault.jpg',
-    duration: '12 min',
-  },
-  
-  // GSQL
-  {
-    title: 'GSQL 101: Introduction to Graph Query Language',
-    description: 'Your first steps with GSQL. Learn SELECT statements, pattern matching, and basic graph traversals in TigerGraph\'s powerful query language.',
-    type: 'tutorial',
-    url: 'https://docs.tigergraph.com/gsql-ref/current/tutorials/gsql-101/',
-    skillLevel: 'beginner',
-    useCases: ['gsql', 'getting-started'],
-    duration: '45 min',
-    featured: true,
-  },
-  {
-    title: 'GSQL Language Reference',
-    description: 'Comprehensive reference guide for GSQL syntax, data types, operators, and query patterns.',
-    type: 'documentation',
-    url: 'https://docs.tigergraph.com/gsql-ref/current/',
-    skillLevel: 'intermediate',
-    useCases: ['gsql'],
-    duration: 'Reference',
-  },
-  {
-    title: 'Advanced GSQL: Pattern Matching and Accumulator',
-    description: 'Master advanced GSQL concepts including complex pattern matching, accumulators for aggregation, and multi-hop traversals.',
-    type: 'video',
-    url: 'https://www.youtube.com/watch?v=example-gsql-advanced',
-    skillLevel: 'advanced',
-    useCases: ['gsql'],
-    thumbnail: 'https://img.youtube.com/vi/example-gsql-advanced/maxresdefault.jpg',
-    duration: '35 min',
-  },
-  
-  // Fraud Detection
-  {
-    title: 'Fraud Detection with Graph Analytics',
-    description: 'Build a real-time fraud detection system using TigerGraph. Learn to identify fraud rings, suspicious patterns, and anomalies in transaction data.',
-    type: 'tutorial',
-    url: 'https://docs.tigergraph.com/solutions/fraud-detection',
-    skillLevel: 'intermediate',
-    useCases: ['fraud-detection'],
-    duration: '60 min',
-    featured: true,
-  },
-  {
-    title: 'Anti-Money Laundering (AML) Starter Kit',
-    description: 'Pre-built solution for detecting money laundering patterns in financial transaction networks using graph algorithms.',
-    type: 'code',
-    url: 'https://github.com/tigergraph/ecosys/tree/master/starter_kits/AMLStarterKit',
-    skillLevel: 'intermediate',
-    useCases: ['fraud-detection', 'finance'],
-    duration: '2 hours',
-  },
-  {
-    title: 'Real-time Fraud Detection Demo',
-    description: 'Watch how TigerGraph detects fraud in real-time by analyzing connections between accounts, devices, and transactions.',
-    type: 'video',
-    url: 'https://www.youtube.com/watch?v=fraud-demo',
-    skillLevel: 'beginner',
-    useCases: ['fraud-detection'],
-    thumbnail: 'https://img.youtube.com/vi/fraud-demo/maxresdefault.jpg',
-    duration: '18 min',
-  },
-  
-  // Recommendations
-  {
-    title: 'Building Recommendation Engines with Graphs',
-    description: 'Learn how to build personalized recommendation systems using collaborative filtering and graph-based similarity algorithms.',
-    type: 'tutorial',
-    url: 'https://docs.tigergraph.com/solutions/recommendations',
-    skillLevel: 'intermediate',
-    useCases: ['recommendations'],
-    duration: '45 min',
-  },
-  {
-    title: 'E-commerce Recommendation Starter Kit',
-    description: 'Complete solution for product recommendations including "customers who bought also bought", personalized picks, and trending items.',
-    type: 'code',
-    url: 'https://github.com/tigergraph/ecosys/tree/master/starter_kits/recommendations',
-    skillLevel: 'intermediate',
-    useCases: ['recommendations', 'ecommerce'],
-    duration: '90 min',
-  },
-  
-  // GraphRAG & AI
-  {
-    title: 'GraphRAG: Supercharge Your LLMs with Graph Context',
-    description: 'Learn how to combine Large Language Models with TigerGraph for more accurate, contextual AI responses using Graph-Powered RAG.',
-    type: 'blog',
-    url: 'https://www.tigergraph.com/blog/graphrag-enterprise',
-    skillLevel: 'advanced',
-    useCases: ['graphrag', 'ai', 'llm'],
-    duration: '20 min read',
-    featured: true,
-  },
-  {
-    title: 'TigerGraph CoPilot: AI-Powered Graph Analytics',
-    description: 'Explore TigerGraph CoPilot - natural language queries, automatic insights, and AI-assisted graph exploration.',
-    type: 'documentation',
-    url: 'https://docs.tigergraph.com/copilot/',
-    skillLevel: 'beginner',
-    useCases: ['ai', 'copilot'],
-    duration: '25 min',
-  },
-  {
-    title: 'Building a Knowledge Graph with LLM Integration',
-    description: 'Step-by-step guide to building a knowledge graph and integrating it with OpenAI/Gemini for intelligent Q&A.',
-    type: 'tutorial',
-    url: 'https://docs.tigergraph.com/tutorials/knowledge-graph-llm',
-    skillLevel: 'advanced',
-    useCases: ['graphrag', 'knowledge-graph', 'ai'],
-    duration: '2 hours',
-  },
-  
-  // Machine Learning
-  {
-    title: 'Graph Machine Learning with TigerGraph',
-    description: 'Introduction to graph machine learning: node embeddings, graph neural networks, and link prediction using TigerGraph ML Workbench.',
-    type: 'course',
-    url: 'https://www.tigergraph.com/certifications/graph-ml/',
-    skillLevel: 'advanced',
-    useCases: ['gnn', 'machine-learning'],
-    duration: '4 hours',
-  },
-  {
-    title: 'GNN Node Classification Tutorial',
-    description: 'Build a graph neural network for node classification using TigerGraph ML Workbench and PyTorch Geometric.',
-    type: 'tutorial',
-    url: 'https://docs.tigergraph.com/ml-workbench/current/tutorials/gnn-classification',
-    skillLevel: 'advanced',
-    useCases: ['gnn', 'machine-learning'],
-    duration: '90 min',
-  },
-  
-  // Schema Design
-  {
-    title: 'Graph Schema Design Best Practices',
-    description: 'Learn how to design efficient graph schemas. Covers vertex/edge types, attributes, indexing, and common design patterns.',
-    type: 'documentation',
-    url: 'https://docs.tigergraph.com/gsql-ref/current/ddl-and-loading/defining-a-graph-schema',
-    skillLevel: 'intermediate',
-    useCases: ['schema-design'],
-    duration: '40 min',
-  },
-  {
-    title: 'From Relational to Graph: Schema Migration Guide',
-    description: 'How to transform your relational database schema into an optimized graph schema. Includes real-world examples and migration strategies.',
-    type: 'blog',
-    url: 'https://www.tigergraph.com/blog/relational-to-graph',
-    skillLevel: 'intermediate',
-    useCases: ['schema-design', 'migration'],
-    duration: '25 min read',
-  },
-  
-  // Performance & Operations
-  {
-    title: 'TigerGraph Performance Tuning Guide',
-    description: 'Optimize query performance with indexing strategies, query optimization techniques, and cluster configuration best practices.',
-    type: 'documentation',
-    url: 'https://docs.tigergraph.com/admin/current/performance/',
-    skillLevel: 'advanced',
-    useCases: ['performance', 'operations'],
-    duration: '60 min',
-  },
-  {
-    title: 'Data Loading Strategies for Large Graphs',
-    description: 'Best practices for loading billions of vertices and edges. Covers parallel loading, incremental updates, and streaming data.',
-    type: 'tutorial',
-    url: 'https://docs.tigergraph.com/gsql-ref/current/ddl-and-loading/',
-    skillLevel: 'intermediate',
-    useCases: ['data-loading', 'operations'],
-    duration: '45 min',
-  },
-  
-  // Python & APIs
-  {
-    title: 'pyTigerGraph: Python SDK for TigerGraph',
-    description: 'Complete guide to pyTigerGraph - connect to TigerGraph, run queries, manage data, and integrate with Python data science tools.',
-    type: 'documentation',
-    url: 'https://docs.tigergraph.com/pytigergraph/current/',
-    skillLevel: 'intermediate',
-    useCases: ['python', 'api'],
-    duration: '30 min',
-  },
-  {
-    title: 'Building a REST API with TigerGraph',
-    description: 'Learn to expose your graph queries as REST endpoints for integration with web applications and microservices.',
-    type: 'tutorial',
-    url: 'https://docs.tigergraph.com/gsql-ref/current/querying/query-operations',
-    skillLevel: 'intermediate',
-    useCases: ['api', 'integration'],
-    duration: '35 min',
-  },
-  
-  // TigerGraph University
-  {
-    title: 'TigerGraph Fundamentals Certification',
-    description: 'Free certification course covering TigerGraph basics, GSQL, GraphStudio, and essential graph concepts.',
-    type: 'course',
-    url: 'https://www.tigergraph.com/certifications/fundamentals/',
-    skillLevel: 'beginner',
-    useCases: ['certification', 'getting-started'],
-    duration: '6 hours',
-    featured: true,
-  },
-  {
-    title: 'TigerGraph Advanced Certification',
-    description: 'Advanced certification covering complex queries, performance optimization, and enterprise features.',
-    type: 'course',
-    url: 'https://www.tigergraph.com/certifications/advanced/',
-    skillLevel: 'advanced',
-    useCases: ['certification'],
-    duration: '8 hours',
-  },
-  
-  // Social & Community
-  {
-    title: 'TigerGraph Community Forum',
-    description: 'Join the community! Ask questions, share solutions, and connect with other TigerGraph developers and experts.',
-    type: 'documentation',
-    url: 'https://community.tigergraph.com/',
-    skillLevel: 'beginner',
-    useCases: ['community'],
-    duration: 'Ongoing',
-  },
-  {
-    title: 'TigerGraph GitHub - Sample Projects',
-    description: 'Explore open-source sample projects, starter kits, and community contributions on TigerGraph\'s official GitHub.',
-    type: 'code',
-    url: 'https://github.com/tigergraph',
-    skillLevel: 'intermediate',
-    useCases: ['code', 'examples'],
-    duration: 'Explore',
-  },
+/**
+ * Comprehensive TigerGraph Documentation Scraper
+ * 
+ * This script fetches all documentation pages from TigerGraph's official sitemaps
+ * (versions 4.2, 4.1, and main) and inserts them into Supabase.
+ * 
+ * Run: node src/data/seedResources.js
+ */
+
+const axios = require('axios');
+const cheerio = require('cheerio');
+const { createClient } = require('@supabase/supabase-js');
+require('dotenv').config();
+
+// Supabase client
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
+  console.error('❌ Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in .env');
+  process.exit(1);
+}
+
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Configuration
+const SITEMAP_INDEX_URL = 'https://docs.tigergraph.com/sitemap.xml';
+const BATCH_SIZE = 10; // Process 10 pages in parallel
+const BATCH_DELAY = 500; // 500ms delay between batches
+const REQUEST_TIMEOUT = 15000; // 15 second timeout per request
+const MAX_RETRIES = 2;
+
+// TigerGraph docs placeholder thumbnail
+const DOCS_PLACEHOLDER_THUMBNAIL = 'https://www.tigergraph.com/wp-content/uploads/2023/02/tigergraph-logo-orange.svg';
+
+// Version filter - only include these versions
+const ALLOWED_VERSIONS = ['/4.2/', '/4.1/', '/main/', '/current/'];
+
+// Sitemap URLs to process
+const SITEMAP_URLS = [
+  'https://docs.tigergraph.com/sitemap-tigergraph-server.xml',
+  'https://docs.tigergraph.com/sitemap-gsql-ref.xml',
+  'https://docs.tigergraph.com/sitemap-gui.xml',
+  'https://docs.tigergraph.com/sitemap-pytigergraph.xml',
+  'https://docs.tigergraph.com/sitemap-insights.xml',
+  'https://docs.tigergraph.com/sitemap-savanna.xml',
+  'https://docs.tigergraph.com/sitemap-graph-ml.xml',
+  'https://docs.tigergraph.com/sitemap-cloud.xml',
+  'https://docs.tigergraph.com/sitemap-graphql.xml',
+  'https://docs.tigergraph.com/sitemap-ml-workbench.xml',
+  'https://docs.tigergraph.com/sitemap-home.xml'
 ];
 
-module.exports = seedResources;
+/**
+ * Infer skill level from URL path
+ */
+function inferSkillLevel(url) {
+  const urlLower = url.toLowerCase();
+  
+  // Beginner keywords
+  if (urlLower.includes('getting-started') || 
+      urlLower.includes('intro') || 
+      urlLower.includes('overview') ||
+      urlLower.includes('tutorial') ||
+      urlLower.includes('basics') ||
+      urlLower.includes('quickstart') ||
+      urlLower.includes('get-started')) {
+    return 'beginner';
+  }
+  
+  // Advanced keywords
+  if (urlLower.includes('advanced') || 
+      urlLower.includes('optimization') || 
+      urlLower.includes('architecture') ||
+      urlLower.includes('performance') ||
+      urlLower.includes('scaling') ||
+      urlLower.includes('cluster') ||
+      urlLower.includes('ha-management')) {
+    return 'advanced';
+  }
+  
+  // Default to intermediate
+  return 'intermediate';
+}
 
+/**
+ * Infer use cases from URL section
+ */
+function inferUseCases(url) {
+  const useCases = ['documentation'];
+  
+  if (url.includes('tigergraph-server')) {
+    useCases.push('database');
+  } else if (url.includes('gsql-ref')) {
+    useCases.push('gsql');
+  } else if (url.includes('/gui/')) {
+    useCases.push('tools');
+  } else if (url.includes('pytigergraph')) {
+    useCases.push('python', 'api');
+  } else if (url.includes('graph-ml')) {
+    useCases.push('ai', 'gnn');
+  } else if (url.includes('savanna')) {
+    useCases.push('cloud');
+  } else if (url.includes('insights')) {
+    useCases.push('visualization');
+  } else if (url.includes('graphql')) {
+    useCases.push('api');
+  } else if (url.includes('ml-workbench')) {
+    useCases.push('ai', 'ml');
+  } else if (url.includes('cloud')) {
+    useCases.push('cloud');
+  }
+  
+  return useCases;
+}
+
+/**
+ * Get section name from URL for categorization
+ */
+function getSectionName(url) {
+  if (url.includes('tigergraph-server')) return 'TigerGraph DB';
+  if (url.includes('gsql-ref')) return 'GSQL Reference';
+  if (url.includes('/gui/')) return 'GraphStudio & Admin';
+  if (url.includes('pytigergraph')) return 'pyTigerGraph';
+  if (url.includes('graph-ml')) return 'Graph ML';
+  if (url.includes('savanna')) return 'Savanna';
+  if (url.includes('insights')) return 'Insights';
+  if (url.includes('graphql')) return 'GraphQL';
+  if (url.includes('ml-workbench')) return 'ML Workbench';
+  if (url.includes('cloud')) return 'Cloud';
+  if (url.includes('home')) return 'Home';
+  return 'General';
+}
+
+/**
+ * Check if URL should be included based on version
+ */
+function shouldIncludeUrl(url) {
+  // Include URLs that match allowed versions
+  for (const version of ALLOWED_VERSIONS) {
+    if (url.includes(version)) {
+      return true;
+    }
+  }
+  
+  // Also include URLs without version numbers (like /home/, /cloud/main/)
+  // Check if URL doesn't have any version pattern like /3.10/, /3.11/
+  const versionPattern = /\/\d+\.\d+\//;
+  if (!versionPattern.test(url)) {
+    return true;
+  }
+  
+  return false;
+}
+
+/**
+ * Fetch and parse a sitemap XML file
+ */
+async function fetchSitemapUrls(sitemapUrl) {
+  try {
+    const response = await axios.get(sitemapUrl, { timeout: REQUEST_TIMEOUT });
+    const $ = cheerio.load(response.data, { xmlMode: true });
+    
+    const urls = [];
+    $('url loc').each((_, element) => {
+      const url = $(element).text().trim();
+      if (shouldIncludeUrl(url)) {
+        urls.push(url);
+      }
+    });
+    
+    return urls;
+  } catch (error) {
+    console.error(`❌ Error fetching sitemap ${sitemapUrl}:`, error.message);
+    return [];
+  }
+}
+
+/**
+ * Fetch page content and extract title/description
+ */
+async function fetchPageContent(url, retries = 0) {
+  try {
+    const response = await axios.get(url, {
+      timeout: REQUEST_TIMEOUT,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      }
+    });
+    
+    const $ = cheerio.load(response.data);
+    
+    // Extract title - try multiple selectors
+    let title = $('article h1').first().text().trim() ||
+                $('h1').first().text().trim() ||
+                $('title').text().replace(' :: TigerGraph Documentation', '').trim() ||
+                'TigerGraph Documentation';
+    
+    // Clean up title
+    title = title.replace(/\s+/g, ' ').trim();
+    if (title.length > 200) {
+      title = title.substring(0, 197) + '...';
+    }
+    
+    // Extract description - try multiple selectors
+    let description = $('meta[name="description"]').attr('content') ||
+                      $('article p').first().text().trim() ||
+                      $('main p').first().text().trim() ||
+                      '';
+    
+    // Clean up description
+    description = description.replace(/\s+/g, ' ').trim();
+    if (description.length > 500) {
+      description = description.substring(0, 497) + '...';
+    }
+    
+    // If no description, generate one from title
+    if (!description || description.length < 20) {
+      const section = getSectionName(url);
+      description = `${section} documentation: ${title}`;
+    }
+    
+    return { title, description };
+  } catch (error) {
+    if (retries < MAX_RETRIES) {
+      await sleep(1000);
+      return fetchPageContent(url, retries + 1);
+    }
+    console.error(`   ⚠️  Failed to fetch ${url}: ${error.message}`);
+    return null;
+  }
+}
+
+/**
+ * Sleep utility
+ */
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Process a batch of URLs
+ */
+async function processBatch(urls, startIndex, totalUrls) {
+  const results = await Promise.all(
+    urls.map(async (url) => {
+      const content = await fetchPageContent(url);
+      if (!content) return null;
+      
+      return {
+        title: content.title,
+        description: content.description,
+        type: 'docs',
+        skill_level: inferSkillLevel(url),
+        use_cases: inferUseCases(url),
+        thumbnail: DOCS_PLACEHOLDER_THUMBNAIL,
+        url: url,
+        duration: null,
+        created_at: new Date().toISOString()
+      };
+    })
+  );
+  
+  return results.filter(Boolean);
+}
+
+/**
+ * Insert resources into Supabase with deduplication
+ */
+async function insertResources(resources) {
+  let inserted = 0;
+  let skipped = 0;
+  let errors = 0;
+  
+  for (const resource of resources) {
+    try {
+      // Check if URL already exists
+      const { data: existing } = await supabase
+        .from('resources')
+        .select('id')
+        .eq('url', resource.url)
+        .single();
+      
+      if (existing) {
+        skipped++;
+        continue;
+      }
+      
+      // Insert new resource
+      const { error } = await supabase
+        .from('resources')
+        .insert([resource]);
+      
+      if (error) {
+        console.error(`   ❌ Error inserting "${resource.title}":`, error.message);
+        errors++;
+      } else {
+        inserted++;
+      }
+    } catch (err) {
+      errors++;
+    }
+  }
+  
+  return { inserted, skipped, errors };
+}
+
+/**
+ * Main function
+ */
+async function main() {
+  console.log('🚀 Starting TigerGraph Documentation Scraper...\n');
+  console.log('📋 Configuration:');
+  console.log(`   - Versions: 4.2, 4.1, main, current`);
+  console.log(`   - Batch size: ${BATCH_SIZE}`);
+  console.log(`   - Batch delay: ${BATCH_DELAY}ms\n`);
+  
+  // Step 1: Collect all URLs from sitemaps
+  console.log('📥 Fetching URLs from sitemaps...\n');
+  
+  let allUrls = [];
+  for (const sitemapUrl of SITEMAP_URLS) {
+    const sitemapName = sitemapUrl.split('/').pop();
+    const urls = await fetchSitemapUrls(sitemapUrl);
+    console.log(`   ${sitemapName}: ${urls.length} URLs`);
+    allUrls = allUrls.concat(urls);
+  }
+  
+  // Remove duplicates
+  allUrls = [...new Set(allUrls)];
+  console.log(`\n📊 Total unique URLs to process: ${allUrls.length}\n`);
+  
+  // Step 2: Process URLs in batches
+  console.log('📄 Processing documentation pages...\n');
+  
+  let totalInserted = 0;
+  let totalSkipped = 0;
+  let totalErrors = 0;
+  
+  for (let i = 0; i < allUrls.length; i += BATCH_SIZE) {
+    const batch = allUrls.slice(i, i + BATCH_SIZE);
+    const batchNum = Math.floor(i / BATCH_SIZE) + 1;
+    const totalBatches = Math.ceil(allUrls.length / BATCH_SIZE);
+    
+    process.stdout.write(`\r   Processing batch ${batchNum}/${totalBatches} (${i + 1}-${Math.min(i + BATCH_SIZE, allUrls.length)}/${allUrls.length})...`);
+    
+    // Fetch page content for batch
+    const resources = await processBatch(batch, i, allUrls.length);
+    
+    // Insert into database
+    const { inserted, skipped, errors } = await insertResources(resources);
+    totalInserted += inserted;
+    totalSkipped += skipped;
+    totalErrors += errors;
+    
+    // Delay between batches
+    if (i + BATCH_SIZE < allUrls.length) {
+      await sleep(BATCH_DELAY);
+    }
+  }
+  
+  console.log('\n');
+  
+  // Step 3: Summary
+  console.log('='.repeat(50));
+  console.log('📊 FINAL SUMMARY');
+  console.log('='.repeat(50));
+  console.log(`   ✅ Inserted: ${totalInserted}`);
+  console.log(`   ⏭️  Skipped:  ${totalSkipped}`);
+  console.log(`   ❌ Errors:   ${totalErrors}`);
+  console.log('='.repeat(50));
+  
+  // Verify total count
+  const { count } = await supabase
+    .from('resources')
+    .select('*', { count: 'exact', head: true });
+  
+  console.log(`\n📈 Total resources in database: ${count}`);
+  
+  // Count by type
+  const { data: typeCounts } = await supabase
+    .from('resources')
+    .select('type');
+  
+  const typeBreakdown = typeCounts.reduce((acc, r) => {
+    acc[r.type] = (acc[r.type] || 0) + 1;
+    return acc;
+  }, {});
+  
+  console.log('\n📊 Resources by type:');
+  Object.entries(typeBreakdown).forEach(([type, count]) => {
+    console.log(`   ${type}: ${count}`);
+  });
+  
+  console.log('\n✅ Documentation scraping complete!');
+}
+
+// Run the script
+main().catch(console.error);

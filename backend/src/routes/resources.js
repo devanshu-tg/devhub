@@ -103,31 +103,69 @@ router.get('/', async (req, res) => {
   // Use Supabase if configured, otherwise use mock data
   if (supabase) {
     try {
-      let query = supabase.from('resources').select('*');
+      // First, get the total count with filters
+      let countQuery = supabase.from('resources').select('*', { count: 'exact', head: true });
       
       if (skillLevel && skillLevel !== 'all') {
-        query = query.eq('skill_level', skillLevel.toLowerCase());
+        countQuery = countQuery.eq('skill_level', skillLevel.toLowerCase());
       }
       
       if (type && type !== 'all') {
-        query = query.eq('type', type.toLowerCase());
+        countQuery = countQuery.eq('type', type.toLowerCase());
       }
       
       if (useCase && useCase !== 'all') {
-        query = query.contains('use_cases', [useCase.toLowerCase()]);
+        countQuery = countQuery.contains('use_cases', [useCase.toLowerCase()]);
       }
       
       if (search) {
-        query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%`);
+        countQuery = countQuery.or(`title.ilike.%${search}%,description.ilike.%${search}%`);
       }
       
-      const { data, error } = await query.order('created_at', { ascending: false });
+      const { count: totalCount, error: countError } = await countQuery;
+      if (countError) throw countError;
       
-      if (error) throw error;
+      // Now fetch all data (paginate if needed to get all results)
+      let allData = [];
+      const pageSize = 1000;
+      let page = 0;
+      
+      while (true) {
+        let query = supabase.from('resources').select('*');
+        
+        if (skillLevel && skillLevel !== 'all') {
+          query = query.eq('skill_level', skillLevel.toLowerCase());
+        }
+        
+        if (type && type !== 'all') {
+          query = query.eq('type', type.toLowerCase());
+        }
+        
+        if (useCase && useCase !== 'all') {
+          query = query.contains('use_cases', [useCase.toLowerCase()]);
+        }
+        
+        if (search) {
+          query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%`);
+        }
+        
+        const { data, error } = await query
+          .order('created_at', { ascending: false })
+          .range(page * pageSize, (page + 1) * pageSize - 1);
+        
+        if (error) throw error;
+        
+        if (!data || data.length === 0) break;
+        
+        allData = allData.concat(data);
+        
+        if (data.length < pageSize) break;
+        page++;
+      }
       
       res.json({
-        data: data.map(toCamelCase),
-        total: data.length,
+        data: allData.map(toCamelCase),
+        total: totalCount,
       });
     } catch (error) {
       console.error('Supabase error:', error);
