@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { 
   Compass, 
   ChevronRight, 
@@ -17,6 +18,7 @@ import {
 } from "lucide-react";
 import clsx from "clsx";
 import { generateLearningPath, type LearningPath } from "@/lib/api";
+import { useAuth } from "@/components/AuthProvider";
 
 interface QuizQuestion {
   id: string;
@@ -72,6 +74,8 @@ const quizQuestions: QuizQuestion[] = [
 ];
 
 export default function PathfinderPage() {
+  const router = useRouter();
+  const { user } = useAuth();
   const [step, setStep] = useState<"quiz" | "loading" | "result">("quiz");
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -321,10 +325,20 @@ export default function PathfinderPage() {
               <RotateCcw className="w-4 h-4" />
               Retake Quiz
             </button>
-            <button className="px-6 py-3 rounded-xl bg-tiger-orange text-themed font-medium hover:bg-tiger-orange-dark transition-all flex items-center gap-2">
-              <Sparkles className="w-5 h-5" />
-              Start Learning
-            </button>
+            {user ? (
+              <button 
+                onClick={() => router.push('/my-learning')}
+                className="px-6 py-3 rounded-xl bg-tiger-orange text-themed font-medium hover:bg-tiger-orange-dark transition-all flex items-center gap-2"
+              >
+                <Sparkles className="w-5 h-5" />
+                Go to My Learning
+              </button>
+            ) : (
+              <button className="px-6 py-3 rounded-xl bg-tiger-orange text-themed font-medium hover:bg-tiger-orange-dark transition-all flex items-center gap-2">
+                <Sparkles className="w-5 h-5" />
+                Sign in to Save Path
+              </button>
+            )}
           </div>
         </div>
       )}

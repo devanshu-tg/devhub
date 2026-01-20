@@ -161,6 +161,123 @@ CREATE POLICY "Users can delete own progress" ON user_progress
 -- Index for faster lookups
 CREATE INDEX IF NOT EXISTS idx_user_progress_user_id ON user_progress(user_id);
 
+-- ==================== PATHFINDER PROGRESS TRACKING ====================
+
+-- User's saved learning paths
+CREATE TABLE IF NOT EXISTS user_learning_paths (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  title TEXT NOT NULL,
+  description TEXT,
+  duration TEXT,
+  experience_level TEXT,
+  goal TEXT,
+  use_case TEXT,
+  milestones JSONB NOT NULL DEFAULT '[]',
+  status TEXT DEFAULT 'active' CHECK (status IN ('active', 'completed', 'paused')),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Enable RLS
+ALTER TABLE user_learning_paths ENABLE ROW LEVEL SECURITY;
+
+-- Users can view their own paths
+CREATE POLICY "Users can view own paths" ON user_learning_paths
+  FOR SELECT USING (auth.uid() = user_id);
+
+-- Users can insert their own paths
+CREATE POLICY "Users can insert own paths" ON user_learning_paths
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- Users can update their own paths
+CREATE POLICY "Users can update own paths" ON user_learning_paths
+  FOR UPDATE USING (auth.uid() = user_id);
+
+-- Users can delete their own paths
+CREATE POLICY "Users can delete own paths" ON user_learning_paths
+  FOR DELETE USING (auth.uid() = user_id);
+
+-- Index for faster lookups
+CREATE INDEX IF NOT EXISTS idx_user_learning_paths_user_id ON user_learning_paths(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_learning_paths_status ON user_learning_paths(status);
+
+-- Track progress on individual resources within a path
+CREATE TABLE IF NOT EXISTS user_path_progress (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  path_id UUID REFERENCES user_learning_paths(id) ON DELETE CASCADE NOT NULL,
+  milestone_index INT NOT NULL,
+  resource_index INT NOT NULL,
+  resource_id UUID REFERENCES resources(id) ON DELETE SET NULL,
+  completed BOOLEAN DEFAULT FALSE,
+  completed_at TIMESTAMP WITH TIME ZONE,
+  notes TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(path_id, milestone_index, resource_index)
+);
+
+-- Enable RLS
+ALTER TABLE user_path_progress ENABLE ROW LEVEL SECURITY;
+
+-- Users can view their own progress
+CREATE POLICY "Users can view own path progress" ON user_path_progress
+  FOR SELECT USING (auth.uid() = user_id);
+
+-- Users can insert their own progress
+CREATE POLICY "Users can insert own path progress" ON user_path_progress
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- Users can update their own progress
+CREATE POLICY "Users can update own path progress" ON user_path_progress
+  FOR UPDATE USING (auth.uid() = user_id);
+
+-- Users can delete their own progress
+CREATE POLICY "Users can delete own path progress" ON user_path_progress
+  FOR DELETE USING (auth.uid() = user_id);
+
+-- Indexes for faster lookups
+CREATE INDEX IF NOT EXISTS idx_user_path_progress_user_id ON user_path_progress(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_path_progress_path_id ON user_path_progress(path_id);
+CREATE INDEX IF NOT EXISTS idx_user_path_progress_completed ON user_path_progress(completed);
+
+-- Track milestone completion status
+CREATE TABLE IF NOT EXISTS user_milestone_progress (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  path_id UUID REFERENCES user_learning_paths(id) ON DELETE CASCADE NOT NULL,
+  milestone_index INT NOT NULL,
+  completed BOOLEAN DEFAULT FALSE,
+  completed_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(path_id, milestone_index)
+);
+
+-- Enable RLS
+ALTER TABLE user_milestone_progress ENABLE ROW LEVEL SECURITY;
+
+-- Users can view their own milestone progress
+CREATE POLICY "Users can view own milestone progress" ON user_milestone_progress
+  FOR SELECT USING (auth.uid() = user_id);
+
+-- Users can insert their own milestone progress
+CREATE POLICY "Users can insert own milestone progress" ON user_milestone_progress
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- Users can update their own milestone progress
+CREATE POLICY "Users can update own milestone progress" ON user_milestone_progress
+  FOR UPDATE USING (auth.uid() = user_id);
+
+-- Users can delete their own milestone progress
+CREATE POLICY "Users can delete own milestone progress" ON user_milestone_progress
+  FOR DELETE USING (auth.uid() = user_id);
+
+-- Indexes for faster lookups
+CREATE INDEX IF NOT EXISTS idx_user_milestone_progress_user_id ON user_milestone_progress(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_milestone_progress_path_id ON user_milestone_progress(path_id);
+
 -- ==================== SEED DATA ====================
 
 -- Seed data for resources

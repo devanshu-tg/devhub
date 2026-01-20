@@ -14,7 +14,8 @@ import {
   BookOpen,
   Menu,
   X,
-  Bookmark
+  Bookmark,
+  GraduationCap
 } from "lucide-react";
 import clsx from "clsx";
 import { useAuth } from "@/components/AuthProvider";
@@ -99,6 +100,22 @@ export default function Sidebar() {
             <p className="px-3 mb-4 text-xs font-semibold text-themed-muted uppercase tracking-wider">
               My Stuff
             </p>
+            <Link
+              href="/my-learning"
+              onClick={() => setMobileOpen(false)}
+              className={clsx(
+                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
+                pathname === "/my-learning"
+                  ? "bg-tiger-orange/10 text-tiger-orange"
+                  : "text-themed-secondary hover:bg-themed-tertiary hover:text-themed"
+              )}
+            >
+              <GraduationCap className={clsx(
+                "w-5 h-5",
+                pathname === "/my-learning" ? "text-tiger-orange" : "text-themed-muted"
+              )} />
+              My Learning
+            </Link>
             <Link
               href="/bookmarks"
               onClick={() => setMobileOpen(false)}

@@ -75,6 +75,7 @@ export interface ChatResponse {
 }
 
 export interface LearningPath {
+  pathId?: string;
   title: string;
   duration: string;
   description: string;
@@ -83,11 +84,53 @@ export interface LearningPath {
     title: string;
     description: string;
     resources: Array<{
+      id?: string;
       title: string;
       type: string;
       duration: string;
+      description?: string;
+      url?: string;
+      thumbnail?: string;
+      skillLevel?: string;
     }>;
   }>;
+}
+
+export interface UserLearningPath {
+  id: string;
+  userId: string;
+  title: string;
+  description: string;
+  duration: string;
+  experienceLevel: string;
+  goal: string;
+  useCase: string;
+  milestones: LearningPath['milestones'];
+  status: 'active' | 'completed' | 'paused';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PathProgress {
+  path: UserLearningPath;
+  resourceProgress: Array<{
+    id: string;
+    milestoneIndex: number;
+    resourceIndex: number;
+    completed: boolean;
+    completedAt: string | null;
+  }>;
+  milestoneProgress: Array<{
+    id: string;
+    milestoneIndex: number;
+    completed: boolean;
+    completedAt: string | null;
+  }>;
+  stats: {
+    totalResources: number;
+    completedResources: number;
+    progressPercentage: number;
+  };
 }
 
 // Resources API
@@ -171,9 +214,10 @@ export async function generateLearningPath(answers: {
   time: string;
 }): Promise<LearningPath> {
   try {
+    const headers = getAuthHeaders();
     const res = await fetch(`${API_URL}/pathfinder/generate`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(answers),
     });
     
@@ -188,6 +232,62 @@ export async function generateLearningPath(answers: {
       description: "A balanced introduction to TigerGraph.",
       milestones: [],
     };
+  }
+}
+
+export async function getMyLearningPath(): Promise<{ path: UserLearningPath | null }> {
+  try {
+    const headers = getAuthHeaders();
+    const res = await fetch(`${API_URL}/pathfinder/my-path`, { headers });
+    
+    if (res.status === 401) {
+      return { path: null };
+    }
+    
+    if (!res.ok) throw new Error('Failed to fetch learning path');
+    return res.json();
+  } catch (error) {
+    console.error('API Error:', error);
+    return { path: null };
+  }
+}
+
+export async function getPathProgress(pathId: string): Promise<PathProgress | null> {
+  try {
+    const headers = getAuthHeaders();
+    const res = await fetch(`${API_URL}/pathfinder/progress/${pathId}`, { headers });
+    
+    if (res.status === 401 || res.status === 404) {
+      return null;
+    }
+    
+    if (!res.ok) throw new Error('Failed to fetch progress');
+    return res.json();
+  } catch (error) {
+    console.error('API Error:', error);
+    return null;
+  }
+}
+
+export async function updatePathProgress(
+  pathId: string,
+  milestoneIndex: number,
+  resourceIndex: number,
+  completed: boolean
+): Promise<{ success: boolean; milestoneComplete: boolean; pathComplete: boolean }> {
+  try {
+    const headers = getAuthHeaders();
+    const res = await fetch(`${API_URL}/pathfinder/progress/${pathId}`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ milestoneIndex, resourceIndex, completed }),
+    });
+    
+    if (!res.ok) throw new Error('Failed to update progress');
+    return res.json();
+  } catch (error) {
+    console.error('API Error:', error);
+    return { success: false, milestoneComplete: false, pathComplete: false };
   }
 }
 
