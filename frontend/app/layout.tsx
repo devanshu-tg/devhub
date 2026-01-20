@@ -52,14 +52,14 @@ export default function RootLayout({
               <Sidebar />
               
               {/* Main content area */}
-              <div className="flex-1 flex flex-col min-h-0">
+              <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden">
                 {/* Header - needs overflow-visible for dropdown */}
                 <div className="relative z-50">
                   <Header />
                 </div>
                 
                 {/* Page content */}
-                <main className="flex-1 overflow-y-auto p-6">
+                <main className="flex-1 overflow-y-auto overflow-x-hidden p-6">
                   {children}
                 </main>
               </div>

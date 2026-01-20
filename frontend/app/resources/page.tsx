@@ -317,7 +317,7 @@ export default function ResourcesPage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 animate-fade-in">
+    <div className="max-w-7xl mx-auto space-y-6 animate-fade-in overflow-hidden">
       {/* Page Header */}
       <div className="space-y-2">
         <h1 className="text-3xl font-bold text-themed">Resource Wall</h1>
@@ -510,12 +510,12 @@ export default function ResourcesPage() {
                 <div
                   key={resource.id}
                   onClick={(e) => handleResourceClick(resource, e)}
-                  className="group flex gap-4 p-4 rounded-xl bg-themed-secondary border border-themed hover:border-tiger-orange/30 transition-all w-full text-left cursor-pointer"
+                  className="group flex gap-4 p-4 rounded-xl bg-themed-secondary border border-themed hover:border-tiger-orange/30 transition-all w-full text-left cursor-pointer overflow-hidden"
                 >
                   <div className="w-12 h-12 rounded-xl bg-themed-tertiary flex items-center justify-center flex-shrink-0">
                     <TypeIcon className="w-6 h-6 text-tiger-orange" />
                   </div>
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-0 overflow-hidden">
                     <div className="flex items-center gap-2 mb-1">
                       <h3 className="font-semibold text-themed group-hover:text-tiger-orange transition-colors truncate">
                         {resource.title}
@@ -524,7 +524,7 @@ export default function ResourcesPage() {
                     </div>
                     <p className="text-sm text-themed-muted line-clamp-1">{resource.description}</p>
                   </div>
-                  <div className="flex items-center gap-3 flex-shrink-0">
+                  <div className="flex items-center gap-3 flex-shrink-0 ml-auto">
                     {/* Bookmark Button */}
                     {user && (
                       <button
@@ -542,14 +542,14 @@ export default function ResourcesPage() {
                       </button>
                     )}
                     <span className={clsx(
-                      "badge",
+                      "badge whitespace-nowrap",
                       resource.skillLevel === "beginner" && "badge-beginner",
                       resource.skillLevel === "intermediate" && "badge-intermediate",
                       resource.skillLevel === "advanced" && "badge-advanced"
                     )}>
                       {resource.skillLevel}
                     </span>
-                    <span className="text-xs text-themed-muted">{resource.duration}</span>
+                    <span className="text-xs text-themed-muted whitespace-nowrap">{resource.duration}</span>
                   </div>
                 </div>
               );
