@@ -9,429 +9,84 @@ const genAI = process.env.GEMINI_API_KEY
   : null;
 
 // =============================================================================
-// CONVERSATION STATE MACHINE
+// TOPIC KEYWORDS FOR DATABASE SEARCH
 // =============================================================================
-const CONV_STATES = {
-  IDLE: 'idle',                     // Initial state - waiting for user
-  GREETING: 'greeting',             // User just greeted
-  ASKING_TOPIC: 'asking_topic',     // Asked user what topic they want
-  ASKING_SKILL: 'asking_skill',     // Asked user their skill level
-  ASKING_GOAL: 'asking_goal',       // Asked user their learning goal
-  READY_TO_SEARCH: 'ready_to_search', // Have enough context to search
-  SHOWING_RESOURCES: 'showing_resources', // Displayed resources
-  FOLLOW_UP: 'follow_up',           // Following up after showing resources
-  EXPLAINING: 'explaining'          // Explaining a concept (no resources needed)
+const TOPIC_KEYWORDS = {
+  gsql: ['gsql', 'query', 'select', 'accum', 'accumulator', 'pattern matching', 'syntax'],
+  fraud: ['fraud', 'detection', 'financial', 'crime', 'aml', 'kyc', 'risk'],
+  recommendations: ['recommend', 'recommendation', 'personalization', 'collaborative', 'filtering'],
+  graphrag: ['graphrag', 'rag', 'retrieval', 'augmented', 'generation', 'llm', 'ai'],
+  gnn: ['gnn', 'neural', 'network', 'machine learning', 'ml', 'deep learning', 'embedding'],
+  schema: ['schema', 'design', 'model', 'vertex', 'edge', 'graph model', 'data model'],
+  cloud: ['cloud', 'setup', 'deploy', 'installation', 'cluster', 'savanna', 'tgcloud'],
+  algorithms: ['algorithm', 'pagerank', 'shortest path', 'community', 'centrality'],
+  python: ['python', 'pytigergraph', 'pytg', 'connector', 'sdk', 'api'],
+  getting_started: ['started', 'begin', 'intro', 'introduction', 'basics', 'fundamental', 'beginner']
 };
 
 // =============================================================================
-// GREETING & SIMPLE RESPONSE DETECTION
+// DETECT TOPIC FOR Q&A MODE FALLBACK
 // =============================================================================
-const GREETING_PATTERNS = [
-  /^(hi|hello|hey|hola|howdy|greetings|sup|yo)$/i,
-  /^(hi|hello|hey|hola|howdy)\s*(there|!|\.)*$/i,
-  /^good\s*(morning|afternoon|evening|day)/i,
-  /^what'?s?\s*up/i,
-  /^how\s*(are\s*you|r\s*u)/i
-];
-
-const THANKS_PATTERNS = [
-  /^(thanks|thank\s*you|thx|ty|cheers|appreciated)/i,
-  /thanks\s*(a\s*lot|so\s*much|!)/i
-];
-
-const AFFIRMATIVE_PATTERNS = [
-  /^(yes|yeah|yep|yup|sure|ok|okay|alright|sounds\s*good|let'?s?\s*go|go\s*ahead)$/i,
-  /^(please|pls)$/i
-];
-
-function isGreeting(message) {
-  const trimmed = message.trim();
-  return GREETING_PATTERNS.some(pattern => pattern.test(trimmed));
-}
-
-function isThanks(message) {
-  return THANKS_PATTERNS.some(pattern => pattern.test(message.trim()));
-}
-
-function isAffirmative(message) {
-  return AFFIRMATIVE_PATTERNS.some(pattern => pattern.test(message.trim()));
-}
-
-// =============================================================================
-// TOPIC DETECTION
-// =============================================================================
-const TOPICS = {
-  gsql: {
-    keywords: ['gsql', 'query', 'select', 'accum', 'accumulator', 'pattern matching', 'syntax', 'queries'],
-    displayName: 'GSQL Query Language',
-    description: 'TigerGraph\'s powerful graph query language'
-  },
-  fraud: {
-    keywords: ['fraud', 'detection', 'financial', 'crime', 'aml', 'kyc', 'risk', 'anti-money'],
-    displayName: 'Fraud Detection',
-    description: 'Real-time fraud detection and prevention'
-  },
-  recommendations: {
-    keywords: ['recommend', 'recommendation', 'personalization', 'collaborative', 'filtering', 'suggest'],
-    displayName: 'Recommendation Engines',
-    description: 'Build personalized recommendation systems'
-  },
-  graphrag: {
-    keywords: ['graphrag', 'rag', 'retrieval', 'augmented', 'generation', 'llm', 'ai', 'gpt', 'chatbot'],
-    displayName: 'GraphRAG & AI',
-    description: 'Combine graph databases with LLMs'
-  },
-  gnn: {
-    keywords: ['gnn', 'neural', 'network', 'machine learning', 'ml', 'deep learning', 'embedding'],
-    displayName: 'Graph Neural Networks',
-    description: 'Machine learning on graphs'
-  },
-  schema: {
-    keywords: ['schema', 'design', 'model', 'vertex', 'edge', 'graph model', 'data model', 'vertices', 'edges'],
-    displayName: 'Schema Design',
-    description: 'Design effective graph data models'
-  },
-  cloud: {
-    keywords: ['cloud', 'setup', 'deploy', 'installation', 'cluster', 'savanna', 'tgcloud'],
-    displayName: 'TigerGraph Cloud',
-    description: 'Deploy and manage in the cloud'
-  },
-  algorithms: {
-    keywords: ['algorithm', 'pagerank', 'shortest path', 'community', 'centrality', 'betweenness', 'closeness'],
-    displayName: 'Graph Algorithms',
-    description: 'PageRank, shortest path, community detection'
-  },
-  python: {
-    keywords: ['python', 'pytigergraph', 'pytg', 'connector', 'sdk', 'api'],
-    displayName: 'pyTigerGraph',
-    description: 'Python connector and tools'
-  },
-  getting_started: {
-    keywords: ['started', 'begin', 'intro', 'introduction', 'basics', 'fundamental', 'new', 'first', 'beginner'],
-    displayName: 'Getting Started',
-    description: 'Introduction to TigerGraph'
-  }
-};
-
 function detectTopic(message) {
   const lowerMessage = message.toLowerCase();
   
-  for (const [topicId, topicData] of Object.entries(TOPICS)) {
-    for (const keyword of topicData.keywords) {
+  for (const [topicId, keywords] of Object.entries(TOPIC_KEYWORDS)) {
+    for (const keyword of keywords) {
       if (lowerMessage.includes(keyword)) {
-        return { id: topicId, ...topicData };
+        return { id: topicId, keywords };
       }
     }
   }
-  
-  return null;
-}
-
-function detectMultipleTopics(message) {
-  const lowerMessage = message.toLowerCase();
-  const foundTopics = [];
-  
-  for (const [topicId, topicData] of Object.entries(TOPICS)) {
-    for (const keyword of topicData.keywords) {
-      if (lowerMessage.includes(keyword)) {
-        foundTopics.push({ id: topicId, ...topicData });
-        break;
-      }
-    }
-  }
-  
-  return foundTopics;
-}
-
-// =============================================================================
-// SKILL LEVEL DETECTION
-// =============================================================================
-const SKILL_LEVELS = {
-  beginner: {
-    patterns: [
-      /beginner/i, /new\s*(to|at)/i, /just\s*start/i, /never\s*(used|tried)/i,
-      /don'?t\s*know/i, /no\s*experience/i, /first\s*time/i, /newbie/i,
-      /complete\s*beginner/i, /totally\s*new/i, /zero\s*experience/i
-    ],
-    displayName: 'Beginner',
-    description: 'New to TigerGraph and graph databases'
-  },
-  intermediate: {
-    patterns: [
-      /intermediate/i, /some\s*experience/i, /know\s*(sql|basics)/i,
-      /familiar\s*with/i, /used\s*(it|tigergraph)\s*before/i,
-      /worked\s*with/i, /understand\s*(the)?\s*basics/i
-    ],
-    displayName: 'Intermediate',
-    description: 'Familiar with basics, ready for more'
-  },
-  advanced: {
-    patterns: [
-      /advanced/i, /expert/i, /experienced/i, /proficient/i,
-      /deep\s*dive/i, /complex/i, /optimization/i, /performance/i,
-      /production/i, /scale/i
-    ],
-    displayName: 'Advanced',
-    description: 'Experienced, looking for advanced topics'
-  }
-};
-
-function detectSkillLevel(message) {
-  const lowerMessage = message.toLowerCase();
-  
-  for (const [level, data] of Object.entries(SKILL_LEVELS)) {
-    for (const pattern of data.patterns) {
-      if (pattern.test(lowerMessage)) {
-        return { level, ...data };
-      }
-    }
-  }
-  
   return null;
 }
 
 // =============================================================================
-// LEARNING GOAL DETECTION
+// SMART RESOURCE SEARCH - Fetches candidates for AI to filter
 // =============================================================================
-const LEARNING_GOALS = {
-  learn_basics: {
-    patterns: [/learn\s*(the)?\s*basics/i, /understand/i, /get\s*started/i, /introduction/i, /fundamentals/i],
-    displayName: 'Learn the basics'
-  },
-  build_project: {
-    patterns: [/build/i, /create/i, /project/i, /application/i, /app/i, /implement/i],
-    displayName: 'Build a project'
-  },
-  write_queries: {
-    patterns: [/write\s*queries/i, /query/i, /gsql/i, /select/i],
-    displayName: 'Write queries'
-  },
-  optimize: {
-    patterns: [/optimize/i, /performance/i, /faster/i, /improve/i, /scale/i],
-    displayName: 'Optimize performance'
-  },
-  explore_usecase: {
-    patterns: [/use\s*case/i, /example/i, /real\s*world/i, /practical/i],
-    displayName: 'Explore use cases'
-  }
-};
-
-function detectLearningGoal(message) {
-  const lowerMessage = message.toLowerCase();
-  
-  for (const [goalId, data] of Object.entries(LEARNING_GOALS)) {
-    for (const pattern of data.patterns) {
-      if (pattern.test(lowerMessage)) {
-        return { id: goalId, ...data };
-      }
-    }
-  }
-  
-  return null;
-}
-
-// =============================================================================
-// EXPLICIT RESOURCE REQUEST DETECTION
-// =============================================================================
-function hasExplicitResourceRequest(message) {
-  const patterns = [
-    /show\s*me/i,
-    /find\s*(me)?\s*(some|a|the)?/i,
-    /looking\s*for/i,
-    /any\s*(videos?|tutorials?|docs?|documentation|resources?)/i,
-    /recommend/i,
-    /suggest/i,
-    /resources?\s*(for|on|about)/i,
-    /give\s*me/i,
-    /what\s*(videos?|tutorials?|docs?|resources?)/i,
-    /list\s*(of)?\s*(videos?|tutorials?|docs?|resources?)/i
-  ];
-  
-  return patterns.some(pattern => pattern.test(message));
-}
-
-// =============================================================================
-// CONCEPT EXPLANATION REQUEST DETECTION
-// =============================================================================
-function hasExplanationRequest(message) {
-  const patterns = [
-    /what\s*(is|are|does)/i,
-    /explain/i,
-    /tell\s*me\s*(about|what)/i,
-    /define/i,
-    /meaning\s*of/i,
-    /difference\s*between/i,
-    /how\s*does\s*.+\s*work/i,
-    /can\s*you\s*explain/i,
-    /help\s*me\s*understand/i
-  ];
-  
-  return patterns.some(pattern => pattern.test(message));
-}
-
-// =============================================================================
-// QUICK REPLY GENERATORS
-// =============================================================================
-function getTopicQuickReplies() {
-  return [
-    { text: "GSQL Query Language", action: "topic_gsql" },
-    { text: "Fraud Detection", action: "topic_fraud" },
-    { text: "GraphRAG & AI", action: "topic_graphrag" },
-    { text: "Recommendation Engines", action: "topic_recommendations" },
-    { text: "Schema Design", action: "topic_schema" },
-    { text: "Something else", action: "topic_other" }
-  ];
-}
-
-function getSkillQuickReplies() {
-  return [
-    { text: "Complete beginner", action: "skill_beginner" },
-    { text: "I know SQL", action: "skill_knows_sql" },
-    { text: "Some graph experience", action: "skill_intermediate" },
-    { text: "Advanced user", action: "skill_advanced" }
-  ];
-}
-
-function getGoalQuickReplies(topic) {
-  const baseReplies = [
-    { text: "Learn the basics", action: "goal_basics" },
-    { text: "Build a project", action: "goal_project" }
-  ];
-  
-  if (topic === 'gsql') {
-    return [
-      ...baseReplies,
-      { text: "Write complex queries", action: "goal_queries" },
-      { text: "See examples", action: "goal_examples" }
-    ];
-  } else if (topic === 'fraud' || topic === 'recommendations') {
-    return [
-      ...baseReplies,
-      { text: "See real-world examples", action: "goal_examples" },
-      { text: "Technical deep dive", action: "goal_technical" }
-    ];
-  }
-  
-  return [
-    ...baseReplies,
-    { text: "Understand concepts", action: "goal_concepts" },
-    { text: "See examples", action: "goal_examples" }
-  ];
-}
-
-function getFollowUpQuickReplies(topic) {
-  return [
-    { text: "Show more resources", action: "more_resources" },
-    { text: "Explain a concept", action: "explain_concept" },
-    { text: "Different topic", action: "new_topic" },
-    { text: "I'm done, thanks!", action: "done" }
-  ];
-}
-
-// =============================================================================
-// SMART RESOURCE SEARCH (Only when we have context)
-// =============================================================================
-async function searchResourcesWithContext(userProfile, options = {}) {
+async function fetchResourceCandidates(keywords = [], skillLevel = null, limit = 20) {
   if (!supabase) return [];
   
-  const { excludeIds = [] } = options;
-  
-  console.log('Search called with excludeIds:', excludeIds.length, 'IDs');
-  
   try {
-    // Get ALL resources - no limit to ensure we get videos, tutorials, AND docs
-    let query = supabase
+    const { data, error } = await supabase
       .from('resources')
-      .select('id, title, description, type, skill_level, url, thumbnail, duration, use_cases');
-    
-    const { data, error } = await query;
+      .select('id, title, description, type, skill_level, url, thumbnail, duration, use_cases, featured');
     
     if (error) throw error;
     
     let results = data || [];
-    console.log('Total resources fetched:', results.length);
     
-    // Filter out already shown resources
-    if (excludeIds.length > 0) {
-      const excludeSet = new Set(excludeIds);
-      results = results.filter(r => !excludeSet.has(r.id));
-      console.log('After excluding shown:', results.length);
+    // Score and rank results based on keywords
+    if (keywords.length > 0) {
+      results = results.map(r => {
+        let score = 0;
+        const titleLower = r.title.toLowerCase();
+        const descLower = (r.description || '').toLowerCase();
+        const useCases = r.use_cases || [];
+        
+        for (const keyword of keywords) {
+          const kw = keyword.toLowerCase();
+          if (titleLower.includes(kw)) score += 25;
+          if (descLower.includes(kw)) score += 10;
+          if (useCases.some(uc => uc.toLowerCase().includes(kw))) score += 15;
+        }
+        
+        // Bonus for skill level match
+        if (skillLevel && r.skill_level === skillLevel) score += 10;
+        
+        // Bonus for featured
+        if (r.featured) score += 5;
+        
+        return { ...r, relevanceScore: score };
+      });
+      
+      // Sort by relevance
+      results.sort((a, b) => b.relevanceScore - a.relevanceScore);
     }
     
-    // Score and rank results
-    results = results.map(r => {
-      let score = 0;
-      const titleLower = r.title.toLowerCase();
-      const descLower = (r.description || '').toLowerCase();
-      
-      // Topic keyword match scoring (highest priority)
-      if (userProfile.topic) {
-        const topicData = TOPICS[userProfile.topic];
-        if (topicData) {
-          for (const keyword of topicData.keywords) {
-            if (titleLower.includes(keyword)) score += 20;
-            if (descLower.includes(keyword)) score += 8;
-          }
-        }
-      }
-      
-      // Skill level match - bonus for matching, but don't exclude others
-      if (userProfile.skillLevel) {
-        if (r.skill_level === userProfile.skillLevel) {
-          score += 10;
-        }
-      }
-      
-      // Type scoring - BALANCED to ensure variety
-      // Give docs a boost since they're underrepresented
-      if (r.type === 'docs') score += 5;
-      if (r.type === 'tutorial') score += 4;
-      if (r.type === 'video') score += 3;
-      
-      // Use case match
-      if (userProfile.topic && r.use_cases) {
-        if (r.use_cases.includes(userProfile.topic)) score += 15;
-      }
-      
-      return { ...r, relevanceScore: score };
-    });
-    
-    // Sort by relevance
-    results.sort((a, b) => b.relevanceScore - a.relevanceScore);
-    
-    // Get top results but ENSURE TYPE DIVERSITY
-    const finalResults = [];
-    const typeCount = { video: 0, tutorial: 0, docs: 0 };
-    const maxPerType = 4; // Max 4 of each type
-    const targetTotal = 12; // Return 12 resources total
-    
-    // First pass: get diverse results
-    for (const r of results) {
-      if (finalResults.length >= targetTotal) break;
-      
-      const type = r.type || 'docs';
-      if (typeCount[type] < maxPerType) {
-        finalResults.push(r);
-        typeCount[type]++;
-      }
-    }
-    
-    // If we don't have enough, fill with remaining
-    if (finalResults.length < targetTotal) {
-      const addedIds = new Set(finalResults.map(r => r.id));
-      for (const r of results) {
-        if (finalResults.length >= targetTotal) break;
-        if (!addedIds.has(r.id)) {
-          finalResults.push(r);
-        }
-      }
-    }
-    
-    console.log('Final results:', finalResults.length, 'Types:', typeCount);
-    
-    return finalResults;
+    // Return top candidates
+    return results.slice(0, limit);
   } catch (error) {
-    console.error('Search error:', error);
+    console.error('Resource search error:', error);
     return [];
   }
 }
@@ -453,47 +108,61 @@ function formatResources(resources) {
 }
 
 // =============================================================================
-// ENHANCED SYSTEM PROMPT FOR GEMINI
+// AI-DRIVEN LEARNING MODE SYSTEM PROMPT
 // =============================================================================
-const TEACHER_SYSTEM_PROMPT = `You are TigerGraph Learning Assistant - a friendly, patient teacher who helps developers learn TigerGraph.
+const LEARNING_AI_SYSTEM_PROMPT = `You are a friendly TigerGraph learning assistant. Your job is to have natural conversations and help users find the perfect learning resources.
 
-## YOUR TEACHING STYLE
-- Be conversational, warm, and encouraging - like a supportive mentor
-- Ask ONE question at a time to understand the student's needs
-- Never dump information without understanding what they need first
-- Celebrate progress and encourage exploration
-
-## STRICT RULES
-1. ONLY discuss TigerGraph, GSQL, graph databases, and directly related topics
-2. If asked about unrelated topics, politely redirect: "I specialize in TigerGraph - let's focus on that! What would you like to learn?"
-3. NEVER show resources unless you understand what the user needs
-4. When showing resources, explain WHY each one is relevant
+## HOW TO BEHAVE
+- Talk like a real human, not a robot
+- Ask ONE question at a time
+- Be curious about what they're trying to accomplish
+- Understand their situation BEFORE recommending anything
 
 ## CONVERSATION FLOW
-When a user greets you:
-- Welcome them warmly
-- Ask what topic they'd like to explore (DON'T show resources yet!)
+1. When user says hi → Welcome them, ask what brings them here
+2. Learn about their goal → Ask follow-up questions to understand their specific needs
+3. Understand their level → Naturally ask about their experience
+4. When you feel confident → Ask "Would you like me to recommend some resources?"
+5. Only recommend AFTER they say yes
 
-When a user mentions a topic:
-- Acknowledge their interest
-- Ask about their experience level with that topic
+## WHEN TO RECOMMEND RESOURCES
+- ONLY when you understand: their goal, their experience level, and they've agreed to see resources
+- When ready, respond with EXACTLY this format (including the markers):
 
-When you know their topic AND skill level:
-- NOW you can recommend specific resources
-- Explain why each resource fits their needs
-- Offer to explain concepts or show more resources
+[READY_FOR_RESOURCES]
+keywords: keyword1, keyword2, keyword3
+skill_level: beginner/intermediate/advanced (or null if any level)
+count: number of resources to show (1-15 based on their need)
+[/READY_FOR_RESOURCES]
 
-## AVAILABLE TOPICS
-- GSQL query language
-- Fraud detection
-- Recommendation engines  
-- GraphRAG (combining graphs with AI)
-- Schema design
-- TigerGraph Cloud
-- Graph algorithms
-- pyTigerGraph (Python)
+Then continue your message naturally like "Let me find some great resources for you!"
 
-Remember: You're a teacher first. Understand before recommending.`;
+## IMPORTANT RULES
+- NEVER use the resource format until user says yes to recommendations
+- NEVER explain WHY you chose each resource - just share them naturally
+- The count should match their need: simple question = 1-3, deep learning = 5-10, comprehensive = 10-15
+- Focus ONLY on TigerGraph, GSQL, and graph databases
+- If asked about unrelated topics, politely redirect to TigerGraph
+
+## EXAMPLE CONVERSATIONS
+
+User: "Hi"
+You: "Hey! 👋 Welcome! What brings you to TigerGraph today? Are you working on something specific or just exploring?"
+
+User: "I want to learn fraud detection"
+You: "Fraud detection is one of the coolest use cases for graphs! Are you building this for a real project, or learning for fun? And what's your background - have you used graph databases before?"
+
+User: "Real project, I know SQL but new to graphs"
+You: "That's great - SQL knowledge transfers well to GSQL! Since you're building something real, would you like me to recommend some resources to get you started with fraud detection in TigerGraph?"
+
+User: "Yes please"
+You: [READY_FOR_RESOURCES]
+keywords: fraud, detection, financial, crime, getting started
+skill_level: intermediate
+count: 4
+[/READY_FOR_RESOURCES]
+
+Here are some resources that should help you get started with fraud detection!`;
 
 // =============================================================================
 // Q&A MODE SYSTEM PROMPT
@@ -573,11 +242,9 @@ async function handleQAMode(req, res, message, history) {
   const detectedTopic = detectTopic(message);
   
   if (detectedTopic) {
-    response = `Great question about **${detectedTopic.displayName}**!
+    response = `Great question about **${detectedTopic.id}**!
 
-While I'm having a brief connection issue with my AI backend, I can tell you that ${detectedTopic.description}.
-
-For detailed information, I recommend switching to **Learning Mode** where I can guide you through curated resources on this topic.`;
+While I'm having a brief connection issue with my AI backend, I recommend switching to **Learning Mode** where I can guide you through curated resources on this topic.`;
   } else {
     response = `That's a great question! 
 
@@ -605,6 +272,173 @@ Or switch to **Learning Mode** for guided tutorials and resources!`;
 }
 
 // =============================================================================
+// AI-DRIVEN LEARNING MODE HANDLER
+// =============================================================================
+async function handleLearningMode(req, res, message, history) {
+  // Check if Gemini is available
+  if (!genAI) {
+    return res.json({
+      response: `Hey there! 👋 I'd love to help you learn TigerGraph, but my AI brain is taking a quick nap (API key not configured).
+
+In the meantime, you can:
+- Switch to **Q&A Mode** for direct answers
+- Check out the **Resources** page to browse all our content
+- Come back when the AI is ready!`,
+      resources: [],
+      quickReplies: [
+        { text: "Switch to Q&A Mode", action: "switch_qa" },
+        { text: "Browse Resources", action: "browse_resources" }
+      ],
+      intent: 'no_ai',
+      context: {}
+    });
+  }
+
+  try {
+    // Build conversation history for Gemini
+    const chatHistory = [
+      { role: "user", parts: [{ text: LEARNING_AI_SYSTEM_PROMPT }] },
+      { role: "model", parts: [{ text: "Got it! I'll have natural conversations, ask questions one at a time, and only recommend resources when I truly understand what the user needs and they've agreed to see them. I'll use the special format when ready to fetch resources." }] },
+      ...history.map(msg => ({
+        role: msg.role === "assistant" ? "model" : "user",
+        parts: [{ text: msg.content }],
+      })),
+    ];
+
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const chat = model.startChat({ history: chatHistory });
+    const result = await chat.sendMessage(message);
+    let aiResponse = result.response.text();
+
+    // Check if AI wants to show resources
+    const resourceMatch = aiResponse.match(/\[READY_FOR_RESOURCES\]([\s\S]*?)\[\/READY_FOR_RESOURCES\]/);
+    
+    if (resourceMatch) {
+      // Parse the resource request
+      const resourceBlock = resourceMatch[1];
+      const keywordsMatch = resourceBlock.match(/keywords:\s*(.+)/i);
+      const skillMatch = resourceBlock.match(/skill_level:\s*(\w+)/i);
+      const countMatch = resourceBlock.match(/count:\s*(\d+)/i);
+
+      const keywords = keywordsMatch 
+        ? keywordsMatch[1].split(',').map(k => k.trim()).filter(k => k && k !== 'null')
+        : [];
+      const skillLevel = skillMatch && skillMatch[1] !== 'null' ? skillMatch[1].toLowerCase() : null;
+      const count = countMatch ? parseInt(countMatch[1]) : 5;
+
+      console.log('AI requested resources:', { keywords, skillLevel, count });
+
+      // Remove the resource block from the response
+      aiResponse = aiResponse.replace(/\[READY_FOR_RESOURCES\][\s\S]*?\[\/READY_FOR_RESOURCES\]/, '').trim();
+
+      // Fetch resource candidates from database
+      const candidates = await fetchResourceCandidates(keywords, skillLevel, count + 5);
+      
+      if (candidates.length > 0) {
+        // Let AI pick the best ones from candidates
+        const selectionPrompt = `You have these ${candidates.length} resources available:
+
+${candidates.map((r, i) => `${i + 1}. "${r.title}" (${r.type}, ${r.skill_level}) - ${r.description?.substring(0, 100)}...`).join('\n')}
+
+The user wants ${count} resources about: ${keywords.join(', ')}
+Skill level preference: ${skillLevel || 'any'}
+
+Return ONLY a comma-separated list of numbers (1-${candidates.length}) for the BEST ${Math.min(count, candidates.length)} resources. Example: 1, 3, 5, 7
+Pick resources that best match their needs. No explanation needed.`;
+
+        try {
+          const selectionResult = await model.generateContent(selectionPrompt);
+          const selectionText = selectionResult.response.text();
+          
+          // Parse selected indices
+          const selectedIndices = selectionText.match(/\d+/g)?.map(n => parseInt(n) - 1) || [];
+          
+          // Get selected resources
+          let selectedResources = selectedIndices
+            .filter(i => i >= 0 && i < candidates.length)
+            .slice(0, count)
+            .map(i => candidates[i]);
+
+          // Fallback: if AI selection failed, just take top candidates
+          if (selectedResources.length === 0) {
+            selectedResources = candidates.slice(0, count);
+          }
+
+          const formattedResources = formatResources(selectedResources);
+
+          return res.json({
+            response: aiResponse,
+            resources: formattedResources,
+            quickReplies: [
+              { text: "Tell me more about these", action: "more_info" },
+              { text: "Show me different resources", action: "different_resources" },
+              { text: "Thanks, this helps!", action: "thanks" }
+            ],
+            intent: 'showing_resources',
+            context: { keywords, skillLevel, lastResourceCount: formattedResources.length }
+          });
+        } catch (selectionError) {
+          console.error('AI selection error:', selectionError);
+          // Fallback to top candidates
+          const formattedResources = formatResources(candidates.slice(0, count));
+          
+          return res.json({
+            response: aiResponse,
+            resources: formattedResources,
+            quickReplies: [
+              { text: "Tell me more", action: "more_info" },
+              { text: "Show different resources", action: "different_resources" }
+            ],
+            intent: 'showing_resources',
+            context: { keywords, skillLevel }
+          });
+        }
+      } else {
+        // No resources found
+        aiResponse += "\n\nHmm, I couldn't find specific resources matching that criteria. Could you tell me more about what you're looking for?";
+        
+        return res.json({
+          response: aiResponse,
+          resources: [],
+          quickReplies: [
+            { text: "Show me beginner content", action: "beginner_content" },
+            { text: "Browse all resources", action: "browse_all" }
+          ],
+          intent: 'no_resources_found',
+          context: { keywords, skillLevel }
+        });
+      }
+    }
+
+    // No resource request - just a conversational response
+    return res.json({
+      response: aiResponse,
+      resources: [],
+      quickReplies: [], // Let the conversation flow naturally
+      intent: 'conversation',
+      context: {}
+    });
+
+  } catch (error) {
+    console.error('Learning mode error:', error.message);
+    
+    return res.json({
+      response: `Oops! I hit a small bump there. 😅 Could you try rephrasing that? Or if you'd like, you can:
+- Ask me about a specific TigerGraph topic
+- Tell me what you're trying to build
+- Switch to Q&A mode for direct answers`,
+      resources: [],
+      quickReplies: [
+        { text: "Help me get started", action: "get_started" },
+        { text: "Switch to Q&A Mode", action: "switch_qa" }
+      ],
+      intent: 'error',
+      context: {}
+    });
+  }
+}
+
+// =============================================================================
 // MAIN CONVERSATION HANDLER
 // =============================================================================
 router.post('/', async (req, res) => {
@@ -615,518 +449,16 @@ router.post('/', async (req, res) => {
   }
   
   // ==========================================================================
-  // Q&A MODE - Direct answers without guided flow
+  // Q&A MODE - Direct answers without guided flow (UNCHANGED)
   // ==========================================================================
   if (mode === 'qa') {
     return handleQAMode(req, res, message, history);
   }
   
   // ==========================================================================
-  // LEARNING MODE - Guided flow with resources (existing behavior)
+  // LEARNING MODE - Now fully AI-driven!
   // ==========================================================================
-  
-  // Parse incoming context (from frontend)
-  let userProfile = {
-    state: conversationContext.state || CONV_STATES.IDLE,
-    topic: conversationContext.topic || null,
-    skillLevel: conversationContext.skillLevel || null,
-    goal: conversationContext.goal || null,
-    background: conversationContext.background || null,
-    shownResourceIds: conversationContext.shownResourceIds || [] // Track shown resources
-  };
-  
-  let response = '';
-  let resources = [];
-  let quickReplies = [];
-  let shouldSearch = false;
-  let isShowMore = false; // Flag for "show more" requests
-  
-  // ==========================================================================
-  // STATE MACHINE LOGIC
-  // ==========================================================================
-  
-  // CASE 0: User asks for more resources
-  const showMorePatterns = [
-    /show\s*(me)?\s*more/i,
-    /more\s*resources/i,
-    /what\s*else/i,
-    /any\s*other/i,
-    /different\s*resources/i,
-    /other\s*options/i
-  ];
-  
-  if (showMorePatterns.some(p => p.test(message)) && userProfile.topic && userProfile.skillLevel) {
-    isShowMore = true;
-    shouldSearch = true;
-    userProfile.state = CONV_STATES.SHOWING_RESOURCES;
-  }
-  
-  // CASE 1: User says thanks
-  if (isThanks(message)) {
-    response = `You're welcome! I'm here whenever you need help with TigerGraph. 
-
-Is there anything else you'd like to learn about? Feel free to ask about any topic!`;
-    quickReplies = getTopicQuickReplies();
-    userProfile.state = CONV_STATES.ASKING_TOPIC;
-    
-    return res.json({
-      response,
-      resources: [],
-      quickReplies,
-      intent: 'thanks',
-      context: userProfile
-    });
-  }
-  
-  // CASE 2: User sends a greeting (Hi, Hello, etc.)
-  if (isGreeting(message) && (userProfile.state === CONV_STATES.IDLE || !userProfile.topic)) {
-    response = `Hey there! 👋 Welcome to TigerGraph Learning Assistant!
-
-I'm here to help you master graph databases. Instead of overwhelming you with resources, let me understand what you need first.
-
-**What topic interests you today?**`;
-    
-    quickReplies = getTopicQuickReplies();
-    userProfile.state = CONV_STATES.ASKING_TOPIC;
-    
-    return res.json({
-      response,
-      resources: [], // NO resources on greeting!
-      quickReplies,
-      intent: 'greeting',
-      context: userProfile
-    });
-  }
-  
-  // CASE 3: User explicitly requests resources ("show me tutorials", "find resources")
-  if (hasExplicitResourceRequest(message)) {
-    // Check if we have enough context
-    const detectedTopic = detectTopic(message);
-    const detectedSkill = detectSkillLevel(message);
-    
-    if (detectedTopic) {
-      userProfile.topic = detectedTopic.id;
-    }
-    if (detectedSkill) {
-      userProfile.skillLevel = detectedSkill.level;
-    }
-    
-    // If we have topic, we can search
-    if (userProfile.topic) {
-      shouldSearch = true;
-      
-      // But first ask about skill level if we don't have it
-      if (!userProfile.skillLevel) {
-        const topicData = TOPICS[userProfile.topic];
-        response = `Great! I'll find ${topicData.displayName} resources for you.
-
-But first, let me personalize the recommendations - **what's your experience level?**`;
-        
-        quickReplies = getSkillQuickReplies();
-        userProfile.state = CONV_STATES.ASKING_SKILL;
-        
-        return res.json({
-          response,
-          resources: [],
-          quickReplies,
-          intent: 'find_resource',
-          context: userProfile
-        });
-      }
-    } else {
-      // No topic detected, ask what they want
-      response = `I'd love to help you find the right resources!
-
-**What topic are you interested in?**`;
-      
-      quickReplies = getTopicQuickReplies();
-      userProfile.state = CONV_STATES.ASKING_TOPIC;
-      
-      return res.json({
-        response,
-        resources: [],
-        quickReplies,
-        intent: 'find_resource',
-        context: userProfile
-      });
-    }
-  }
-  
-  // CASE 4: User asks for explanation (concept question)
-  if (hasExplanationRequest(message) && !hasExplicitResourceRequest(message)) {
-    const detectedTopic = detectTopic(message);
-    if (detectedTopic) {
-      userProfile.topic = detectedTopic.id;
-    }
-    
-    // Let Gemini handle the explanation, but DON'T search for resources yet
-    userProfile.state = CONV_STATES.EXPLAINING;
-    
-    // Use Gemini for explanation
-    if (genAI) {
-      try {
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-        const prompt = `${TEACHER_SYSTEM_PROMPT}
-
-The user asked: "${message}"
-
-Explain this concept clearly and concisely. After explaining, ask if they'd like to see resources or learn more.
-DO NOT list resources - just explain the concept and offer to help further.`;
-        
-        const result = await model.generateContent(prompt);
-        response = result.response.text();
-        
-        quickReplies = [
-          { text: "Show me resources", action: "show_resources" },
-          { text: "Explain more", action: "explain_more" },
-          { text: "Different topic", action: "new_topic" }
-        ];
-        
-        return res.json({
-          response,
-          resources: [],
-          quickReplies,
-          intent: 'explain_concept',
-          context: userProfile
-        });
-      } catch (error) {
-        console.error('Gemini error:', error);
-        // Fall through to fallback
-      }
-    }
-    
-    // Fallback explanation
-    const topicName = detectedTopic ? detectedTopic.displayName : 'that concept';
-    response = `That's a great question about ${topicName}!
-
-Let me help you understand this better. Would you like me to:
-- **Explain the concept** in simple terms
-- **Show you resources** to learn more
-- **See practical examples**
-
-What would be most helpful?`;
-    
-    quickReplies = [
-      { text: "Explain it simply", action: "explain_simple" },
-      { text: "Show me resources", action: "show_resources" },
-      { text: "Show examples", action: "show_examples" }
-    ];
-    
-    return res.json({
-      response,
-      resources: [],
-      quickReplies,
-      intent: 'explain_concept',
-      context: userProfile
-    });
-  }
-  
-  // CASE 5: We're in ASKING_TOPIC state and user mentions a topic
-  if (userProfile.state === CONV_STATES.ASKING_TOPIC || !userProfile.topic) {
-    const detectedTopic = detectTopic(message);
-    
-    if (detectedTopic) {
-      userProfile.topic = detectedTopic.id;
-      userProfile.state = CONV_STATES.ASKING_SKILL;
-      
-      response = `Excellent choice! **${detectedTopic.displayName}** is ${detectedTopic.description}.
-
-To recommend the best resources for you, I need to know your current level.
-
-**What's your experience with ${detectedTopic.displayName}?**`;
-      
-      quickReplies = getSkillQuickReplies();
-      
-      return res.json({
-        response,
-        resources: [],
-        quickReplies,
-        intent: 'topic_selected',
-        context: userProfile
-      });
-    }
-    
-    // Check for "other" or general interest
-    if (/other|something\s*else|different/i.test(message)) {
-      response = `No problem! TigerGraph can be used for many things.
-
-Could you tell me more about what you're trying to accomplish? For example:
-- Are you working on a specific project?
-- Is there a problem you're trying to solve?
-- Or are you just exploring what's possible?`;
-      
-      quickReplies = [
-        { text: "Working on a project", action: "has_project" },
-        { text: "Solving a problem", action: "has_problem" },
-        { text: "Just exploring", action: "exploring" }
-      ];
-      
-      return res.json({
-        response,
-        resources: [],
-        quickReplies,
-        intent: 'clarifying',
-        context: userProfile
-      });
-    }
-  }
-  
-  // CASE 6: We're in ASKING_SKILL state and user mentions skill level
-  if (userProfile.state === CONV_STATES.ASKING_SKILL || (userProfile.topic && !userProfile.skillLevel)) {
-    const detectedSkill = detectSkillLevel(message);
-    
-    // Also check for "knows SQL" pattern
-    const knowsSQL = /know\s*sql|familiar\s*with\s*sql|sql\s*background/i.test(message);
-    
-    if (detectedSkill || knowsSQL) {
-      if (knowsSQL && !detectedSkill) {
-        userProfile.skillLevel = 'intermediate';
-        userProfile.background = 'knows_sql';
-      } else {
-        userProfile.skillLevel = detectedSkill.level;
-      }
-      
-      userProfile.state = CONV_STATES.ASKING_GOAL;
-      
-      const topicData = TOPICS[userProfile.topic] || { displayName: 'TigerGraph' };
-      const skillName = SKILL_LEVELS[userProfile.skillLevel]?.displayName || userProfile.skillLevel;
-      
-      let skillAck = '';
-      if (userProfile.background === 'knows_sql') {
-        skillAck = `Since you know SQL, you'll find GSQL quite familiar - it builds on SQL concepts!`;
-      } else if (userProfile.skillLevel === 'beginner') {
-        skillAck = `No worries - everyone starts somewhere! I'll make sure to recommend beginner-friendly content.`;
-      } else if (userProfile.skillLevel === 'advanced') {
-        skillAck = `Great to have an experienced user! I'll focus on advanced techniques and optimizations.`;
-      } else {
-        skillAck = `Got it - you have some experience. I'll find content that builds on what you know.`;
-      }
-      
-      response = `${skillAck}
-
-**What's your main goal with ${topicData.displayName}?**`;
-      
-      quickReplies = getGoalQuickReplies(userProfile.topic);
-      
-      return res.json({
-        response,
-        resources: [],
-        quickReplies,
-        intent: 'skill_selected',
-        context: userProfile
-      });
-    }
-  }
-  
-  // CASE 7: We're in ASKING_GOAL state or user mentions a goal
-  if (userProfile.state === CONV_STATES.ASKING_GOAL || (userProfile.topic && userProfile.skillLevel)) {
-    const detectedGoal = detectLearningGoal(message);
-    
-    if (detectedGoal) {
-      userProfile.goal = detectedGoal.id;
-    }
-    
-    // We have enough context - NOW we search!
-    userProfile.state = CONV_STATES.SHOWING_RESOURCES;
-    shouldSearch = true;
-  }
-  
-  // CASE 8: Affirmative response when we have context
-  if (isAffirmative(message) && userProfile.topic && userProfile.skillLevel) {
-    userProfile.state = CONV_STATES.SHOWING_RESOURCES;
-    shouldSearch = true;
-  }
-  
-  // ==========================================================================
-  // SEARCH AND RESPOND (only when shouldSearch is true)
-  // ==========================================================================
-  
-  if (shouldSearch && userProfile.topic && userProfile.skillLevel) {
-    // ALWAYS pass excludeIds to avoid repeats - accumulate across all searches
-    const currentShownIds = userProfile.shownResourceIds || [];
-    console.log('Current shown IDs before search:', currentShownIds.length);
-    
-    const searchOptions = {
-      excludeIds: currentShownIds // Always exclude previously shown
-    };
-    
-    resources = await searchResourcesWithContext(userProfile, searchOptions);
-    const formattedResources = formatResources(resources);
-    
-    // Track shown resource IDs - accumulate all shown
-    const newShownIds = formattedResources.map(r => r.id);
-    userProfile.shownResourceIds = [...currentShownIds, ...newShownIds];
-    console.log('Total shown IDs after search:', userProfile.shownResourceIds.length);
-    
-    const topicData = TOPICS[userProfile.topic] || { displayName: 'TigerGraph' };
-    const skillName = SKILL_LEVELS[userProfile.skillLevel]?.displayName || userProfile.skillLevel;
-    
-    if (formattedResources.length > 0) {
-      // Different response for "show more" vs initial results
-      if (isShowMore) {
-        response = `Here are **${formattedResources.length} more resources** for ${topicData.displayName}:`;
-      } else {
-        response = `Here's your personalized learning path for **${topicData.displayName}** (${skillName} level):
-
-I've found **${formattedResources.length} resources** mixing videos, tutorials, and docs:`;
-      }
-      
-      // Group resources by type for better presentation
-      const videos = formattedResources.filter(r => r.type === 'video');
-      const tutorials = formattedResources.filter(r => r.type === 'tutorial');
-      const docs = formattedResources.filter(r => r.type === 'docs');
-      
-      // Add brief descriptions - show variety
-      let counter = 1;
-      if (videos.length > 0) {
-        response += `\n\n📹 **Videos** (${videos.length}):`;
-        videos.slice(0, 3).forEach(r => {
-          response += `\n${counter}. **${r.title}** - ${r.skillLevel}`;
-          counter++;
-        });
-      }
-      if (tutorials.length > 0) {
-        response += `\n\n📚 **Tutorials** (${tutorials.length}):`;
-        tutorials.slice(0, 3).forEach(r => {
-          response += `\n${counter}. **${r.title}** - ${r.skillLevel}`;
-          counter++;
-        });
-      }
-      if (docs.length > 0) {
-        response += `\n\n📖 **Documentation** (${docs.length}):`;
-        docs.slice(0, 3).forEach(r => {
-          response += `\n${counter}. **${r.title}** - ${r.skillLevel}`;
-          counter++;
-        });
-      }
-      
-      if (!isShowMore) {
-        response += `\n\nI recommend starting with a video to get an overview, then diving into tutorials for hands-on practice!`;
-      } else {
-        response += `\n\nWant to see even more, or shall we explore a different aspect?`;
-      }
-    } else {
-      if (isShowMore) {
-        response = `I've shown you all the ${topicData.displayName} resources I have! 
-
-Would you like to:
-- **Explore a different topic** 
-- **Change skill level** to see different content
-- **Ask me to explain** a specific concept`;
-      } else {
-        response = `I couldn't find specific resources matching your criteria, but here's what I suggest:
-
-1. Start with the **TigerGraph Getting Started guide** in our resource library
-2. Check out the **GSQL 101** video series for fundamentals
-3. Explore the **official documentation** for ${topicData.displayName}
-
-Would you like me to search for something more specific?`;
-      }
-    }
-    
-    quickReplies = getFollowUpQuickReplies(userProfile.topic);
-    
-    return res.json({
-      response,
-      resources: formattedResources,
-      quickReplies,
-      intent: 'showing_resources',
-      context: userProfile
-    });
-  }
-  
-  // ==========================================================================
-  // FALLBACK: Use Gemini for complex queries or unknown states
-  // ==========================================================================
-  
-  if (genAI) {
-    try {
-      // Build context for Gemini
-      let contextInfo = '';
-      if (userProfile.topic) {
-        contextInfo += `\nUser's topic of interest: ${TOPICS[userProfile.topic]?.displayName || userProfile.topic}`;
-      }
-      if (userProfile.skillLevel) {
-        contextInfo += `\nUser's skill level: ${userProfile.skillLevel}`;
-      }
-      if (userProfile.goal) {
-        contextInfo += `\nUser's learning goal: ${userProfile.goal}`;
-      }
-      
-      const enhancedPrompt = `${TEACHER_SYSTEM_PROMPT}
-
-Current conversation state: ${userProfile.state}
-${contextInfo}
-
-Previous messages:
-${history.slice(-4).map(m => `${m.role}: ${m.content}`).join('\n')}
-
-User says: "${message}"
-
-Respond as a helpful teacher. If you don't know their topic or skill level yet, ASK - don't assume.
-DO NOT show a list of resources unless you clearly understand what they need.
-Keep responses concise (2-3 paragraphs max).`;
-      
-      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-      const result = await model.generateContent(enhancedPrompt);
-      response = result.response.text();
-      
-      // Determine appropriate quick replies based on state
-      if (!userProfile.topic) {
-        quickReplies = getTopicQuickReplies();
-        userProfile.state = CONV_STATES.ASKING_TOPIC;
-      } else if (!userProfile.skillLevel) {
-        quickReplies = getSkillQuickReplies();
-        userProfile.state = CONV_STATES.ASKING_SKILL;
-      } else {
-        quickReplies = getFollowUpQuickReplies(userProfile.topic);
-      }
-      
-      return res.json({
-        response,
-        resources: [],
-        quickReplies,
-        intent: 'gemini_response',
-        context: userProfile
-      });
-    } catch (error) {
-      console.error('Gemini error:', error);
-      // Fall through to static fallback
-    }
-  }
-  
-  // ==========================================================================
-  // STATIC FALLBACK (no Gemini or Gemini failed)
-  // ==========================================================================
-  
-  // Determine what to ask based on missing information
-  if (!userProfile.topic) {
-    response = `I'd love to help you learn TigerGraph! 
-
-To give you the best recommendations, could you tell me what topic interests you most?`;
-    quickReplies = getTopicQuickReplies();
-    userProfile.state = CONV_STATES.ASKING_TOPIC;
-  } else if (!userProfile.skillLevel) {
-    const topicData = TOPICS[userProfile.topic];
-    response = `Great, you're interested in ${topicData?.displayName || userProfile.topic}!
-
-What's your current experience level?`;
-    quickReplies = getSkillQuickReplies();
-    userProfile.state = CONV_STATES.ASKING_SKILL;
-  } else {
-    response = `I'm here to help you learn ${TOPICS[userProfile.topic]?.displayName || 'TigerGraph'}!
-
-What would you like to do next?`;
-    quickReplies = getFollowUpQuickReplies(userProfile.topic);
-  }
-  
-  return res.json({
-    response,
-    resources: [],
-    quickReplies,
-    intent: 'fallback',
-    context: userProfile
-  });
+  return handleLearningMode(req, res, message, history);
 });
 
 // =============================================================================
@@ -1148,11 +480,17 @@ router.get('/suggestions', async (req, res) => {
 
 // GET /api/chat/topics
 router.get('/topics', async (req, res) => {
-  const topics = Object.entries(TOPICS).map(([id, data]) => ({
-    id,
-    name: data.displayName,
-    description: data.description
-  }));
+  const topics = [
+    { id: 'gsql', name: 'GSQL Query Language', description: 'TigerGraph\'s powerful graph query language' },
+    { id: 'fraud', name: 'Fraud Detection', description: 'Real-time fraud detection and prevention' },
+    { id: 'recommendations', name: 'Recommendation Engines', description: 'Build personalized recommendation systems' },
+    { id: 'graphrag', name: 'GraphRAG & AI', description: 'Combine graph databases with LLMs' },
+    { id: 'schema', name: 'Schema Design', description: 'Design effective graph data models' },
+    { id: 'cloud', name: 'TigerGraph Cloud', description: 'Deploy and manage in the cloud' },
+    { id: 'algorithms', name: 'Graph Algorithms', description: 'PageRank, shortest path, community detection' },
+    { id: 'python', name: 'pyTigerGraph', description: 'Python connector and tools' },
+    { id: 'getting_started', name: 'Getting Started', description: 'Introduction to TigerGraph' }
+  ];
   
   res.json(topics);
 });
