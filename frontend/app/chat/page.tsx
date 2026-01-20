@@ -150,45 +150,32 @@ export default function ChatPage() {
   const [expandedResources, setExpandedResources] = useState<Set<string>>(new Set()); // Track which messages have expanded resources
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
-  // Handle mode change
+  // Handle mode change - always start a fresh chat
   const handleModeChange = (newMode: ChatMode) => {
     if (newMode === chatMode) return;
     
     setChatMode(newMode);
     
-    // Update the welcome message based on mode (keep chat history)
-    // Add a system message indicating mode change if there are messages beyond welcome
-    if (messages.length > 1) {
-      const modeChangeMessage: Message = {
-        id: Date.now().toString(),
-        role: "assistant",
-        content: newMode === 'learning' 
-          ? `Switched to **Learning Mode** 📚\n\nI'll now guide you through topics and recommend personalized resources. What would you like to learn?`
-          : `Switched to **Q&A Mode** 💬\n\nI'll now answer your questions directly. What would you like to know about TigerGraph?`,
-        quickReplies: newMode === 'learning' ? initialWelcomeQuickReplies : [],
-      };
-      setMessages(prev => [...prev, modeChangeMessage]);
-    } else {
-      // Update welcome message if it's the only message
-      setMessages([{
-        id: "welcome",
-        role: "assistant",
-        content: newMode === 'learning' ? learningWelcomeMessage : qaWelcomeMessage,
-        quickReplies: newMode === 'learning' ? initialWelcomeQuickReplies : [],
-      }]);
-    }
+    // Reset conversation context
+    setConversationContext({
+      state: 'idle',
+      topic: null,
+      skillLevel: null,
+      goal: null,
+      background: null,
+      shownResourceIds: []
+    });
     
-    // Reset context when switching to learning mode
-    if (newMode === 'learning') {
-      setConversationContext({
-        state: 'idle',
-        topic: null,
-        skillLevel: null,
-        goal: null,
-        background: null,
-        shownResourceIds: []
-      });
-    }
+    // Clear expanded resources
+    setExpandedResources(new Set());
+    
+    // Start fresh chat with appropriate welcome message
+    setMessages([{
+      id: "welcome-" + Date.now(),
+      role: "assistant",
+      content: newMode === 'learning' ? learningWelcomeMessage : qaWelcomeMessage,
+      quickReplies: newMode === 'learning' ? initialWelcomeQuickReplies : [],
+    }]);
   };
 
   const scrollToBottom = () => {
