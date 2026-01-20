@@ -29,6 +29,7 @@ import {
 } from "@/lib/api";
 import ChatResourceCard from "@/components/ui/ChatResourceCard";
 import { useAuth } from "@/components/AuthProvider";
+import AuthModal from "@/components/ui/AuthModal";
 
 // Conversation context type matching backend
 interface ConversationContext {
@@ -126,6 +127,9 @@ export default function ChatPage() {
   // Chat mode - learning (guided + resources) or qa (direct answers)
   const [chatMode, setChatMode] = useState<ChatMode>('learning');
   
+  // Auth modal state
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  
   // Conversation context - tracks what we know about the user
   const [conversationContext, setConversationContext] = useState<ConversationContext>({
     state: 'idle',
@@ -190,6 +194,12 @@ export default function ChatPage() {
     const textToSend = messageText || input.trim();
     if (!textToSend || isLoading) return;
 
+    // Check if user is logged in
+    if (!user) {
+      setShowAuthModal(true);
+      return;
+    }
+
     const userMessage: Message = {
       id: Date.now().toString(),
       role: "user",
@@ -243,6 +253,12 @@ export default function ChatPage() {
   };
 
   const handleQuickReply = (reply: QuickReply) => {
+    // Check if user is logged in
+    if (!user) {
+      setShowAuthModal(true);
+      return;
+    }
+
     // Map actions to natural language queries
     const actionMessages: Record<string, string> = {
       // Topic selections
@@ -655,6 +671,13 @@ export default function ChatPage() {
           I'll ask a few questions to understand your needs, then recommend the best resources for you.
         </p>
       </div>
+
+      {/* Auth Modal */}
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        defaultTab="login"
+      />
     </div>
   );
 }
