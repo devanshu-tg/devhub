@@ -131,7 +131,8 @@ export async function getResource(id: string): Promise<Resource | null> {
 export async function sendChatMessage(
   message: string,
   history: ChatMessage[] = [],
-  conversationContext?: ChatContext
+  conversationContext?: ChatContext,
+  mode: 'learning' | 'qa' = 'learning'
 ): Promise<ChatResponse> {
   try {
     const res = await fetch(`${API_URL}/chat`, {
@@ -140,7 +141,8 @@ export async function sendChatMessage(
       body: JSON.stringify({ 
         message, 
         history,
-        conversationContext: conversationContext || {}
+        conversationContext: conversationContext || {},
+        mode
       }),
     });
     

@@ -16,7 +16,9 @@ import {
   Shield,
   Brain,
   Database,
-  RotateCcw
+  RotateCcw,
+  GraduationCap,
+  MessageCircle
 } from "lucide-react";
 import clsx from "clsx";
 import { 
@@ -102,8 +104,27 @@ const topicCards = [
   }
 ];
 
+// Chat mode type
+type ChatMode = 'learning' | 'qa';
+
+// Welcome messages for each mode
+const learningWelcomeMessage = `Hey there! 👋 Welcome to TigerGraph Learning Assistant!
+
+I'm here to help you master graph databases. Instead of overwhelming you with resources, let me understand what you need first.
+
+**What topic interests you today?**`;
+
+const qaWelcomeMessage = `Hey there! 👋 I'm your TigerGraph expert!
+
+Ask me anything about TigerGraph, GSQL, graph databases, or any related topic. I'll give you direct answers and explanations.
+
+**What would you like to know?**`;
+
 export default function ChatPage() {
   const { user } = useAuth();
+  
+  // Chat mode - learning (guided + resources) or qa (direct answers)
+  const [chatMode, setChatMode] = useState<ChatMode>('learning');
   
   // Conversation context - tracks what we know about the user
   const [conversationContext, setConversationContext] = useState<ConversationContext>({
@@ -119,11 +140,7 @@ export default function ChatPage() {
     {
       id: "welcome",
       role: "assistant",
-      content: `Hey there! 👋 Welcome to TigerGraph Learning Assistant!
-
-I'm here to help you master graph databases. Instead of overwhelming you with resources, let me understand what you need first.
-
-**What topic interests you today?**`,
+      content: learningWelcomeMessage,
       quickReplies: initialWelcomeQuickReplies,
     },
   ]);
@@ -132,6 +149,47 @@ I'm here to help you master graph databases. Instead of overwhelming you with re
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set());
   const [expandedResources, setExpandedResources] = useState<Set<string>>(new Set()); // Track which messages have expanded resources
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  // Handle mode change
+  const handleModeChange = (newMode: ChatMode) => {
+    if (newMode === chatMode) return;
+    
+    setChatMode(newMode);
+    
+    // Update the welcome message based on mode (keep chat history)
+    // Add a system message indicating mode change if there are messages beyond welcome
+    if (messages.length > 1) {
+      const modeChangeMessage: Message = {
+        id: Date.now().toString(),
+        role: "assistant",
+        content: newMode === 'learning' 
+          ? `Switched to **Learning Mode** 📚\n\nI'll now guide you through topics and recommend personalized resources. What would you like to learn?`
+          : `Switched to **Q&A Mode** 💬\n\nI'll now answer your questions directly. What would you like to know about TigerGraph?`,
+        quickReplies: newMode === 'learning' ? initialWelcomeQuickReplies : [],
+      };
+      setMessages(prev => [...prev, modeChangeMessage]);
+    } else {
+      // Update welcome message if it's the only message
+      setMessages([{
+        id: "welcome",
+        role: "assistant",
+        content: newMode === 'learning' ? learningWelcomeMessage : qaWelcomeMessage,
+        quickReplies: newMode === 'learning' ? initialWelcomeQuickReplies : [],
+      }]);
+    }
+    
+    // Reset context when switching to learning mode
+    if (newMode === 'learning') {
+      setConversationContext({
+        state: 'idle',
+        topic: null,
+        skillLevel: null,
+        goal: null,
+        background: null,
+        shownResourceIds: []
+      });
+    }
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -161,8 +219,8 @@ I'm here to help you master graph databases. Instead of overwhelming you with re
         .filter(m => m.id !== "welcome")
         .map(m => ({ role: m.role, content: m.content }));
 
-      // Send current conversation context to backend
-      const response = await sendChatMessage(textToSend, history, conversationContext);
+      // Send current conversation context and mode to backend
+      const response = await sendChatMessage(textToSend, history, conversationContext, chatMode);
 
       // Update conversation context from response
       if (response.context) {
@@ -469,30 +527,61 @@ I'm here to help you master graph databases. Instead of overwhelming you with re
     <div className="max-w-4xl mx-auto h-[calc(100vh-8rem)] flex flex-col animate-fade-in">
       {/* Header */}
       <div className="flex items-center gap-4 pb-6 border-b border-themed">
-        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-tiger-orange to-amber-500 flex items-center justify-center">
-          <Sparkles className="w-6 h-6 text-white" />
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-tiger-orange to-amber-500 flex items-center justify-center flex-shrink-0">
+          <Sparkles className="w-5 h-5 text-white" />
         </div>
-        <div className="flex-1">
-          <h1 className="text-2xl font-bold text-themed">TigerGraph Learning Assistant</h1>
-          <p className="text-themed-muted text-sm">
+        <div className="flex-1 min-w-0">
+          <h1 className="text-xl font-bold text-themed">TigerGraph Learning Assistant</h1>
+          <p className="text-themed-muted text-xs">
             Your AI guide to mastering graph databases
             {user && <span className="text-tiger-orange"> • {user.email?.split('@')[0]}</span>}
           </p>
         </div>
-        {/* Reset button in header */}
+        
+        {/* Mode Toggle - in header */}
+        <div className="flex items-center gap-1 p-1 bg-themed-secondary rounded-full border border-themed">
+          <button
+            onClick={() => handleModeChange('learning')}
+            className={clsx(
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all",
+              chatMode === 'learning'
+                ? "bg-tiger-orange text-white shadow-sm"
+                : "text-themed-muted hover:text-themed"
+            )}
+          >
+            <GraduationCap className="w-3.5 h-3.5" />
+            Learning
+          </button>
+          <button
+            onClick={() => handleModeChange('qa')}
+            className={clsx(
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all",
+              chatMode === 'qa'
+                ? "bg-tiger-orange text-white shadow-sm"
+                : "text-themed-muted hover:text-themed"
+            )}
+          >
+            <MessageCircle className="w-3.5 h-3.5" />
+            Q&A
+          </button>
+        </div>
+        
+        {/* Reset button */}
         <button
           onClick={handleReset}
-          className="p-2 rounded-lg bg-themed-tertiary border border-themed hover:border-tiger-orange transition-colors"
+          className="p-2 rounded-lg bg-themed-tertiary border border-themed hover:border-tiger-orange transition-colors flex-shrink-0"
           title="Start new conversation"
         >
-          <RotateCcw className="w-5 h-5 text-themed-muted" />
+          <RotateCcw className="w-4 h-4 text-themed-muted" />
         </button>
       </div>
 
-      {/* Context Indicator */}
-      <div className="pt-4">
-        {renderContextIndicator()}
-      </div>
+      {/* Context Indicator (only in learning mode) */}
+      {chatMode === 'learning' && (
+        <div className="pb-2">
+          {renderContextIndicator()}
+        </div>
+      )}
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto py-4 space-y-6">

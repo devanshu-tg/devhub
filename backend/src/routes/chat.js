@@ -496,14 +496,161 @@ When you know their topic AND skill level:
 Remember: You're a teacher first. Understand before recommending.`;
 
 // =============================================================================
+// Q&A MODE SYSTEM PROMPT
+// =============================================================================
+const QA_SYSTEM_PROMPT = `You are a TigerGraph expert assistant in Q&A mode. Your role is to:
+
+1. Answer questions directly and clearly about TigerGraph, GSQL, graph databases, and related topics
+2. Provide explanations with examples when helpful
+3. Be conversational but informative
+4. If you don't know something, say so honestly
+5. Keep responses focused and concise (2-4 paragraphs max)
+6. Use markdown formatting for code examples
+
+You can answer questions about:
+- GSQL syntax, queries, and best practices
+- TigerGraph architecture and concepts
+- Graph database fundamentals
+- Schema design patterns
+- Graph algorithms
+- TigerGraph Cloud and deployment
+- pyTigerGraph and integrations
+- Performance optimization
+- Use cases (fraud detection, recommendations, etc.)
+
+DO NOT:
+- Recommend specific resources or tutorials (unless explicitly asked)
+- Ask follow-up questions about skill level or learning goals
+- Redirect to other sources - answer directly
+
+Be helpful, accurate, and conversational.`;
+
+// =============================================================================
+// Q&A MODE HANDLER
+// =============================================================================
+async function handleQAMode(req, res, message, history) {
+  let response = '';
+  let resources = [];
+  
+  // Try to use Gemini for direct Q&A
+  if (genAI) {
+    try {
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+      
+      // Build chat history
+      const chatHistory = [
+        { role: "user", parts: [{ text: QA_SYSTEM_PROMPT }] },
+        { role: "model", parts: [{ text: "I understand! I'm ready to answer your questions about TigerGraph, GSQL, and graph databases directly. What would you like to know?" }] },
+        ...history.map(msg => ({
+          role: msg.role === "assistant" ? "model" : "user",
+          parts: [{ text: msg.content }],
+        })),
+      ];
+      
+      const chat = model.startChat({ history: chatHistory });
+      const result = await chat.sendMessage(message);
+      response = result.response.text();
+      
+      // Optionally find 1-2 relevant resources if the question is about a specific topic
+      const detectedTopic = detectTopic(message);
+      if (detectedTopic && supabase) {
+        try {
+          const { data } = await supabase
+            .from('resources')
+            .select('id, title, type, skill_level, url')
+            .or(`title.ilike.%${detectedTopic.keywords[0]}%,description.ilike.%${detectedTopic.keywords[0]}%`)
+            .limit(2);
+          
+          if (data && data.length > 0) {
+            resources = data.map(r => ({
+              id: r.id,
+              title: r.title,
+              type: r.type,
+              skillLevel: r.skill_level,
+              url: r.url
+            }));
+            
+            // Add a subtle suggestion at the end
+            response += `\n\n---\n*Want to dive deeper? Check out: ${resources.map(r => `**${r.title}**`).join(' or ')}*`;
+          }
+        } catch (err) {
+          console.error('Error fetching related resources:', err);
+        }
+      }
+      
+      return res.json({
+        response,
+        resources, // Minimal resources (0-2)
+        quickReplies: [
+          { text: "Tell me more", action: "tell_more" },
+          { text: "Show me an example", action: "show_example" },
+          { text: "Switch to Learning Mode", action: "switch_learning" }
+        ],
+        intent: 'qa_answer',
+        context: { state: 'qa_mode', topic: detectedTopic?.id || null, skillLevel: null, goal: null }
+      });
+      
+    } catch (error) {
+      console.error('Gemini Q&A error:', error.message);
+      // Fall through to fallback
+    }
+  }
+  
+  // Fallback response when Gemini is not available
+  const detectedTopic = detectTopic(message);
+  
+  if (detectedTopic) {
+    response = `Great question about **${detectedTopic.displayName}**!
+
+While I'm having a brief connection issue with my AI backend, I can tell you that ${detectedTopic.description}.
+
+For detailed information, I recommend switching to **Learning Mode** where I can guide you through curated resources on this topic.`;
+  } else {
+    response = `That's a great question! 
+
+I'm currently experiencing a connection issue with my AI backend, so I can't provide a detailed answer right now.
+
+Try asking about specific topics like:
+- **GSQL** - TigerGraph's query language
+- **Schema Design** - How to model your graph
+- **Graph Algorithms** - PageRank, shortest path, etc.
+- **TigerGraph Cloud** - Deployment and management
+
+Or switch to **Learning Mode** for guided tutorials and resources!`;
+  }
+  
+  return res.json({
+    response,
+    resources: [],
+    quickReplies: [
+      { text: "Switch to Learning Mode", action: "switch_learning" },
+      { text: "Try again", action: "retry" }
+    ],
+    intent: 'qa_fallback',
+    context: { state: 'qa_mode', topic: detectedTopic?.id || null, skillLevel: null, goal: null }
+  });
+}
+
+// =============================================================================
 // MAIN CONVERSATION HANDLER
 // =============================================================================
 router.post('/', async (req, res) => {
-  const { message, history = [], conversationContext = {} } = req.body;
+  const { message, history = [], conversationContext = {}, mode = 'learning' } = req.body;
   
   if (!message) {
     return res.status(400).json({ error: 'Message is required' });
   }
+  
+  // ==========================================================================
+  // Q&A MODE - Direct answers without guided flow
+  // ==========================================================================
+  if (mode === 'qa') {
+    return handleQAMode(req, res, message, history);
+  }
+  
+  // ==========================================================================
+  // LEARNING MODE - Guided flow with resources (existing behavior)
+  // ==========================================================================
   
   // Parse incoming context (from frontend)
   let userProfile = {
@@ -645,7 +792,7 @@ But first, let me personalize the recommendations - **what's your experience lev
     // Use Gemini for explanation
     if (genAI) {
       try {
-        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const prompt = `${TEACHER_SYSTEM_PROMPT}
 
 The user asked: "${message}"
@@ -947,7 +1094,7 @@ Respond as a helpful teacher. If you don't know their topic or skill level yet, 
 DO NOT show a list of resources unless you clearly understand what they need.
 Keep responses concise (2-3 paragraphs max).`;
       
-      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const result = await model.generateContent(enhancedPrompt);
       response = result.response.text();
       
