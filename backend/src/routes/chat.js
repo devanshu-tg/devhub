@@ -530,9 +530,8 @@ Be helpful, accurate, and conversational.`;
 // =============================================================================
 async function handleQAMode(req, res, message, history) {
   let response = '';
-  let resources = [];
   
-  // Try to use Gemini for direct Q&A
+  // Try to use Gemini for direct Q&A (no resources in Q&A mode)
   if (genAI) {
     try {
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
@@ -551,43 +550,17 @@ async function handleQAMode(req, res, message, history) {
       const result = await chat.sendMessage(message);
       response = result.response.text();
       
-      // Optionally find 1-2 relevant resources if the question is about a specific topic
-      const detectedTopic = detectTopic(message);
-      if (detectedTopic && supabase) {
-        try {
-          const { data } = await supabase
-            .from('resources')
-            .select('id, title, type, skill_level, url')
-            .or(`title.ilike.%${detectedTopic.keywords[0]}%,description.ilike.%${detectedTopic.keywords[0]}%`)
-            .limit(2);
-          
-          if (data && data.length > 0) {
-            resources = data.map(r => ({
-              id: r.id,
-              title: r.title,
-              type: r.type,
-              skillLevel: r.skill_level,
-              url: r.url
-            }));
-            
-            // Add a subtle suggestion at the end
-            response += `\n\n---\n*Want to dive deeper? Check out: ${resources.map(r => `**${r.title}**`).join(' or ')}*`;
-          }
-        } catch (err) {
-          console.error('Error fetching related resources:', err);
-        }
-      }
-      
+      // Q&A Mode: No resources, just direct answers
       return res.json({
         response,
-        resources, // Minimal resources (0-2)
+        resources: [], // No resources in Q&A mode
         quickReplies: [
           { text: "Tell me more", action: "tell_more" },
           { text: "Show me an example", action: "show_example" },
           { text: "Switch to Learning Mode", action: "switch_learning" }
         ],
         intent: 'qa_answer',
-        context: { state: 'qa_mode', topic: detectedTopic?.id || null, skillLevel: null, goal: null }
+        context: { state: 'qa_mode', topic: null, skillLevel: null, goal: null }
       });
       
     } catch (error) {
