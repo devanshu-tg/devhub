@@ -592,8 +592,8 @@ export default function ChatPage() {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Topic Cards (show only on welcome when no context) - compact version */}
-      {messages.length === 1 && !conversationContext.topic && (
+      {/* Topic Cards (show only in Q&A mode on welcome - Learning mode already has quick replies) */}
+      {messages.length === 1 && !conversationContext.topic && chatMode === 'qa' && (
         <div className="pb-3">
           <p className="text-xs text-themed-muted mb-2 flex items-center gap-1">
             <Lightbulb className="w-3 h-3" />
