@@ -20,6 +20,7 @@ app.use('/api/resources', require('./routes/resources'));
 app.use('/api/chat', require('./routes/chat'));
 app.use('/api/pathfinder', require('./routes/pathfinder'));
 app.use('/api/user', require('./routes/user'));
+app.use('/api/gsql-ai', require('./routes/gsql-ai'));
 
 // Health check
 app.get('/api/health', (req, res) => {

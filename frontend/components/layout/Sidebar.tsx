@@ -158,7 +158,14 @@ export default function Sidebar() {
 
       {/* Bottom section */}
       <div className="p-4 border-t border-themed">
-        <div className="p-4 rounded-xl bg-gradient-to-br from-tiger-orange/10 to-transparent border border-tiger-orange/20">
+        <Link
+          href="/gsql-ai"
+          onClick={() => setMobileOpen(false)}
+          className={clsx(
+            "block p-4 rounded-xl bg-gradient-to-br from-tiger-orange/10 to-transparent border border-tiger-orange/20 hover:border-tiger-orange/50 transition-all",
+            pathname === "/gsql-ai" && "ring-2 ring-tiger-orange/50"
+          )}
+        >
           <div className="flex items-center gap-2 mb-2">
             <Sparkles className="w-4 h-4 text-tiger-orange" />
             <span className="text-sm font-semibold text-themed">GSQL AI Pro</span>
@@ -166,10 +173,15 @@ export default function Sidebar() {
           <p className="text-xs text-themed-secondary mb-3">
             Generate production-ready GSQL with AI
           </p>
-          <span className="text-xs px-2 py-1 rounded-full bg-themed-tertiary text-themed-secondary">
-            Coming Soon
+          <span className={clsx(
+            "text-xs px-2 py-1 rounded-full inline-block",
+            pathname === "/gsql-ai" 
+              ? "bg-tiger-orange text-white" 
+              : "bg-themed-tertiary text-themed-secondary"
+          )}>
+            {pathname === "/gsql-ai" ? "Active" : "Try Now"}
           </span>
-        </div>
+        </Link>
       </div>
     </>
   );

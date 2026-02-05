@@ -464,3 +464,55 @@ export async function removeProgress(resourceId: string): Promise<boolean> {
     return false;
   }
 }
+
+// ==================== GSQL AI API ====================
+
+export interface GSQLGenerationRequest {
+  prompt: string;
+  schema?: string;
+  context?: string;
+}
+
+export interface GSQLGenerationResponse {
+  code: string;
+  explanation: string;
+  features: string[];
+  fullResponse: string;
+}
+
+export async function generateGSQL(request: GSQLGenerationRequest): Promise<GSQLGenerationResponse> {
+  try {
+    const headers = getAuthHeaders();
+    const res = await fetch(`${API_URL}/gsql-ai/generate`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(request),
+    });
+    
+    if (!res.ok) {
+      let errorData;
+      try {
+        errorData = await res.json();
+      } catch {
+        errorData = { error: `HTTP ${res.status}: ${res.statusText}` };
+      }
+      
+      const errorMessage = errorData.error || errorData.message || 'Failed to generate GSQL';
+      const error = new Error(errorMessage);
+      (error as any).status = res.status;
+      (error as any).details = errorData.details;
+      throw error;
+    }
+    
+    return res.json();
+  } catch (error: any) {
+    console.error('GSQL API Error:', error);
+    
+    // If it's a network error
+    if (error.name === 'TypeError' && error.message.includes('fetch')) {
+      throw new Error('Network error. Please check your connection and try again.');
+    }
+    
+    throw error;
+  }
+}
