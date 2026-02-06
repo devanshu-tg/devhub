@@ -1,61 +1,141 @@
 // Load environment variables FIRST before any other imports
 require('dotenv').config();
 
+// Log environment check
+console.log('🔍 Environment check:');
+console.log(`  NODE_ENV: ${process.env.NODE_ENV || 'not set'}`);
+console.log(`  PORT: ${process.env.PORT || 'not set'}`);
+console.log(`  FRONTEND_URL: ${process.env.FRONTEND_URL || 'not set'}`);
+console.log(`  SUPABASE_URL: ${process.env.SUPABASE_URL ? 'set' : 'not set'}`);
+console.log(`  GEMINI_API_KEY: ${process.env.GEMINI_API_KEY ? 'set' : 'not set'}`);
+
 const express = require('express');
 const cors = require('cors');
-const { startScheduler } = require('./services/scheduler');
+
+// Load scheduler with error handling
+let startScheduler;
+try {
+  startScheduler = require('./services/scheduler').startScheduler;
+  console.log('✅ Scheduler module loaded');
+} catch (error) {
+  console.error('⚠️  Failed to load scheduler:', error.message);
+  startScheduler = () => console.log('⚠️  Scheduler not available');
+}
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Middleware
-// Support multiple origins for development and production
+// Middleware - Simplified CORS Configuration
+const frontendUrl = process.env.FRONTEND_URL 
+  ? process.env.FRONTEND_URL.replace(/\/$/, '') // Remove trailing slash
+  : 'http://localhost:3000';
+
 const allowedOrigins = [
   'http://localhost:3000',
-  process.env.FRONTEND_URL,
-].filter(Boolean); // Remove undefined values
+  frontendUrl,
+  'https://devhub-tg.vercel.app', // Explicitly add your Vercel URL
+].filter(Boolean);
+
+console.log('🌐 Allowed CORS origins:', allowedOrigins);
+console.log('🌐 NODE_ENV:', process.env.NODE_ENV);
+console.log('🌐 FRONTEND_URL from env:', process.env.FRONTEND_URL);
 
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps, curl, or server-to-server)
-    if (!origin) return callback(null, true);
+    // Allow requests with no origin (server-to-server, curl, etc.)
+    if (!origin) {
+      console.log('✅ Allowing request with no origin');
+      return callback(null, true);
+    }
     
-    // In production, be more permissive to avoid blocking legitimate requests
-    // Railway and other platforms may use different origins
+    // Check if origin is exactly in allowed list
+    if (allowedOrigins.includes(origin)) {
+      console.log(`✅ Allowing exact match: ${origin}`);
+      return callback(null, true);
+    }
+    
+    // In production, also allow vercel.app and railway.app domains
     if (process.env.NODE_ENV === 'production') {
-      // Allow if it matches our frontend URL or is a known good origin
-      if (allowedOrigins.some(allowed => origin.includes(allowed.replace(/https?:\/\//, '').split('/')[0]))) {
-        return callback(null, true);
-      }
-      // Also allow Railway internal requests
-      if (origin.includes('railway.app') || origin.includes('vercel.app')) {
+      if (origin.includes('vercel.app') || origin.includes('railway.app')) {
+        console.log(`✅ Allowing production origin: ${origin}`);
         return callback(null, true);
       }
     }
     
-    // Development: allow localhost
-    if (process.env.NODE_ENV !== 'production' || allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      // Log for debugging but allow in production to avoid blocking
-      console.warn(`⚠️  CORS: Origin not in allowed list: ${origin}`);
-      callback(null, true); // Allow anyway in production to avoid blocking
+    // In development, allow all origins
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`✅ Allowing development origin: ${origin}`);
+      return callback(null, true);
     }
+    
+    // Log blocked origin for debugging
+    console.warn(`⚠️  CORS blocked origin: ${origin}`);
+    console.warn(`   Allowed origins: ${allowedOrigins.join(', ')}`);
+    
+    // Block in production if not allowed
+    callback(new Error(`Not allowed by CORS. Origin: ${origin}`));
   },
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Content-Length', 'Content-Type'],
+  maxAge: 86400, // 24 hours
 }));
 app.use(express.json());
 
-// Routes
-app.use('/api/resources', require('./routes/resources'));
-app.use('/api/chat', require('./routes/chat'));
-app.use('/api/pathfinder', require('./routes/pathfinder'));
-app.use('/api/user', require('./routes/user'));
-app.use('/api/gsql-ai', require('./routes/gsql-ai'));
+// Routes - with error handling for route loading
+try {
+  app.use('/api/resources', require('./routes/resources'));
+  console.log('✅ Resources route loaded');
+} catch (error) {
+  console.error('❌ Failed to load resources route:', error.message);
+}
 
-// Health check
+try {
+  app.use('/api/chat', require('./routes/chat'));
+  console.log('✅ Chat route loaded');
+} catch (error) {
+  console.error('❌ Failed to load chat route:', error.message);
+}
+
+try {
+  app.use('/api/pathfinder', require('./routes/pathfinder'));
+  console.log('✅ Pathfinder route loaded');
+} catch (error) {
+  console.error('❌ Failed to load pathfinder route:', error.message);
+}
+
+try {
+  app.use('/api/user', require('./routes/user'));
+  console.log('✅ User route loaded');
+} catch (error) {
+  console.error('❌ Failed to load user route:', error.message);
+}
+
+try {
+  app.use('/api/gsql-ai', require('./routes/gsql-ai'));
+  console.log('✅ GSQL AI route loaded');
+} catch (error) {
+  console.error('❌ Failed to load GSQL AI route:', error.message);
+}
+
+// Health check - should be accessible even if routes fail
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+    port: process.env.PORT || 3001
+  });
+});
+
+// Root endpoint
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'DevHub API Server',
+    status: 'running',
+    endpoints: ['/api/health', '/api/resources', '/api/chat', '/api/gsql-ai']
+  });
 });
 
 // Error handling middleware
@@ -82,7 +162,21 @@ const server = app.listen(PORT, '0.0.0.0', () => {
 // Handle server errors
 server.on('error', (error) => {
   console.error('❌ Server error:', error);
+  if (error.code === 'EADDRINUSE') {
+    console.error(`Port ${PORT} is already in use`);
+  }
   process.exit(1);
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  console.error('❌ Uncaught Exception:', error);
+  // Don't exit immediately - let the server try to handle it
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+  // Don't exit immediately - let the server try to handle it
 });
 
 // Graceful shutdown
