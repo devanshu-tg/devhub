@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { supabase } = require('../config/supabase');
+const fs = require('fs');
+const path = require('path');
 
 // Initialize Gemini (will use API key from env)
 const genAI = process.env.GEMINI_API_KEY 
@@ -38,6 +40,146 @@ function detectTopic(message) {
     }
   }
   return null;
+}
+
+// =============================================================================
+// RAG: Knowledge Base Loading and Chunking
+// =============================================================================
+let knowledgeBaseChunks = null;
+
+function loadKnowledgeBase() {
+  try {
+    const kbPath = path.join(__dirname, '../data/llm-full.md');
+    
+    if (!fs.existsSync(kbPath)) {
+      console.warn('⚠️  Knowledge base file not found at:', kbPath);
+      return [];
+    }
+    
+    const content = fs.readFileSync(kbPath, 'utf-8');
+    const chunks = [];
+    
+    // Split by section headers (## )
+    const sections = content.split(/^##\s+/gm);
+    
+    sections.forEach((section, index) => {
+      if (!section.trim()) return;
+      
+      // Extract title (first line) and content (rest)
+      const lines = section.split('\n');
+      const title = lines[0].trim();
+      let sectionContent = lines.slice(1).join('\n').trim();
+      
+      // Skip the SYSTEM tag section (first section before any ##)
+      if (title.includes('<SYSTEM>') || title.includes('TIGERGRAPH_FULL_AGENT_REFERENCE')) {
+        return;
+      }
+      
+      // Extract subsection titles (### ) and include them in content for better matching
+      const subsectionMatches = sectionContent.match(/^###\s+([^\n]+)/gm);
+      if (subsectionMatches) {
+        // Add subsection titles to content for better keyword matching
+        const subsectionTitles = subsectionMatches.map(m => m.replace(/^###\s+/, '').trim()).join(' ');
+        sectionContent = subsectionTitles + ' ' + sectionContent;
+      }
+      
+      // Skip very short chunks
+      if (sectionContent.length < 50) return;
+      
+      chunks.push({
+        id: index,
+        title: title || `Section ${index}`,
+        content: sectionContent,
+        keywords: extractKeywords(sectionContent)
+      });
+    });
+    
+    console.log(`✅ Loaded ${chunks.length} knowledge base chunks from llm-full.md`);
+    return chunks;
+  } catch (error) {
+    console.error('Error loading knowledge base:', error);
+    return [];
+  }
+}
+
+function extractKeywords(text) {
+  // Simple keyword extraction
+  const words = text.toLowerCase()
+    .replace(/[^\w\s]/g, ' ')
+    .split(/\s+/)
+    .filter(word => word.length > 3);
+  
+  // Count frequency
+  const freq = {};
+  words.forEach(word => freq[word] = (freq[word] || 0) + 1);
+  
+  // Return top keywords
+  return Object.entries(freq)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([word]) => word);
+}
+
+function retrieveRelevantChunks(question, chunks, topK = 5) {
+  if (!chunks || chunks.length === 0) return [];
+  
+  const questionLower = question.toLowerCase();
+  const questionWords = questionLower.split(/\s+/).filter(w => w.length > 2);
+  
+  // Score each chunk
+  const scoredChunks = chunks.map(chunk => {
+    let score = 0;
+    const chunkText = chunk.content.toLowerCase();
+    const chunkTitle = chunk.title.toLowerCase();
+    
+    // Exact phrase match (highest score)
+    if (chunkText.includes(questionLower)) {
+      score += 100;
+    }
+    
+    // Exact word matches in title (very high priority)
+    questionWords.forEach(word => {
+      // Check for exact word match (not substring)
+      const titleWords = chunkTitle.split(/[\s_]+/);
+      if (titleWords.some(tw => tw === word)) {
+        score += 30;
+      } else if (chunkTitle.includes(word)) {
+        score += 20;
+      }
+    });
+    
+    // Content word matches
+    questionWords.forEach(word => {
+      // Check for exact word match in content
+      const wordRegex = new RegExp(`\\b${word}\\b`, 'i');
+      if (wordRegex.test(chunkText)) {
+        score += 15; // Exact word match gets higher score
+      } else if (chunkText.includes(word)) {
+        score += 10; // Substring match
+      }
+      
+      // Bonus for keyword matches
+      if (chunk.keywords && chunk.keywords.includes(word)) {
+        score += 5;
+      }
+    });
+    
+    return { ...chunk, score };
+  });
+  
+  // Sort by score and return top K
+  return scoredChunks
+    .sort((a, b) => b.score - a.score)
+    .filter(chunk => chunk.score > 0)
+    .slice(0, topK);
+}
+
+function formatRAGContext(chunks) {
+  if (!chunks || chunks.length === 0) return '';
+  
+  return chunks
+    .map((chunk, index) => `[Context ${index + 1}: ${chunk.title}]\n${chunk.content}`)
+    .join('\n\n---\n\n');
 }
 
 // =============================================================================
@@ -195,19 +337,45 @@ DO NOT:
 Be helpful, accurate, and conversational.`;
 
 // =============================================================================
-// Q&A MODE HANDLER
+// Q&A MODE HANDLER WITH RAG
 // =============================================================================
 async function handleQAMode(req, res, message, history) {
   let response = '';
+  
+  // Load knowledge base on first use (lazy loading with caching)
+  if (!knowledgeBaseChunks) {
+    knowledgeBaseChunks = loadKnowledgeBase();
+  }
   
   // Try to use Gemini for direct Q&A (no resources in Q&A mode)
   if (genAI) {
     try {
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       
+      // RAG: Retrieve relevant context from knowledge base
+      let ragContext = '';
+      if (knowledgeBaseChunks && knowledgeBaseChunks.length > 0) {
+        try {
+          const relevantChunks = retrieveRelevantChunks(message, knowledgeBaseChunks, 5);
+          if (relevantChunks.length > 0) {
+            ragContext = formatRAGContext(relevantChunks);
+            console.log(`📚 RAG: Retrieved ${relevantChunks.length} relevant chunks`);
+          }
+        } catch (ragError) {
+          console.error('RAG retrieval error:', ragError);
+          // Continue without RAG context if retrieval fails
+        }
+      }
+      
+      // Enhance system prompt with RAG context
+      let enhancedPrompt = QA_SYSTEM_PROMPT;
+      if (ragContext) {
+        enhancedPrompt += `\n\n## RELEVANT CONTEXT FROM KNOWLEDGE BASE:\n\n${ragContext}\n\nUse this context to provide accurate, detailed answers. If the context doesn't fully answer the question, combine it with your general knowledge.`;
+      }
+      
       // Build chat history
       const chatHistory = [
-        { role: "user", parts: [{ text: QA_SYSTEM_PROMPT }] },
+        { role: "user", parts: [{ text: enhancedPrompt }] },
         { role: "model", parts: [{ text: "I understand! I'm ready to answer your questions about TigerGraph, GSQL, and graph databases directly. What would you like to know?" }] },
         ...history.map(msg => ({
           role: msg.role === "assistant" ? "model" : "user",
