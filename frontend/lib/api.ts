@@ -471,6 +471,13 @@ export interface GSQLGenerationRequest {
   prompt: string;
   schema?: string;
   context?: string;
+  history?: Array<{role: 'user' | 'assistant', content: string}>;
+}
+
+export interface RAGContext {
+  chunksRetrieved: number;
+  relevantSections: string[];
+  confidence: number;
 }
 
 export interface GSQLGenerationResponse {
@@ -478,6 +485,7 @@ export interface GSQLGenerationResponse {
   explanation: string;
   features: string[];
   fullResponse: string;
+  ragContext?: RAGContext;
 }
 
 export async function generateGSQL(request: GSQLGenerationRequest): Promise<GSQLGenerationResponse> {

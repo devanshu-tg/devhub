@@ -253,7 +253,6 @@ export default function ResourcesPage() {
     e.stopPropagation(); // Prevent card click
     
     // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/40d92828-9f17-455f-a0e1-01c5e52c9c7a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'resources/page.tsx:handleBookmarkToggle',message:'Bookmark button clicked',data:{resourceId,hasUser:!!user},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'I'})}).catch(()=>{});
     // #endregion
     
     if (!user) {

@@ -55,20 +55,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Initialize auth state
   useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/40d92828-9f17-455f-a0e1-01c5e52c9c7a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AuthProvider.tsx:useEffect',message:'Auth useEffect started',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,B'})}).catch(()=>{});
-    // #endregion
-
     let isMounted = true;
     let authResolved = false;
 
     // Listen for auth changes FIRST - this is more reliable than getSession()
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, currentSession) => {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/40d92828-9f17-455f-a0e1-01c5e52c9c7a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AuthProvider.tsx:onAuthStateChange',message:'Auth state changed',data:{event,hasSession:!!currentSession,hasUser:!!currentSession?.user,userEmail:currentSession?.user?.email,authResolved},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
-        // #endregion
-        
         if (!isMounted) return;
         
         authResolved = true;
@@ -77,19 +69,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSession(currentSession);
         setCurrentSession(currentSession);
         setUser(currentSession?.user ?? null);
-        
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/40d92828-9f17-455f-a0e1-01c5e52c9c7a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AuthProvider.tsx:onAuthStateChange:setLoading',message:'Setting loading=false IMMEDIATELY',data:{hasUser:!!currentSession?.user},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
         setLoading(false);
 
         // Fetch profile in background - don't block the UI
         if (currentSession?.user) {
           fetchProfile(currentSession.user.id).then(profileData => {
             if (isMounted) {
-              // #region agent log
-              fetch('http://127.0.0.1:7242/ingest/40d92828-9f17-455f-a0e1-01c5e52c9c7a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AuthProvider.tsx:profileFetched',message:'Profile fetched',data:{hasProfile:!!profileData},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
-              // #endregion
               setProfile(profileData);
             }
           });
@@ -103,9 +88,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // This handles the case where there's no session and no auth event fires
     const timeoutId = setTimeout(() => {
       if (!authResolved && isMounted) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/40d92828-9f17-455f-a0e1-01c5e52c9c7a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AuthProvider.tsx:timeout',message:'Auth timeout - setting loading=false',data:{authResolved},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
         setLoading(false);
       }
     }, 2000);

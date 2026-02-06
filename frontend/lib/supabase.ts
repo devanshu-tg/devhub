@@ -16,9 +16,6 @@ let instanceCount = 0;
 export function getSupabase() {
   if (!supabaseInstance) {
     instanceCount++;
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/40d92828-9f17-455f-a0e1-01c5e52c9c7a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'supabase.ts:getSupabase',message:'Creating NEW Supabase client',data:{instanceCount},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-    // #endregion
     supabaseInstance = createClient();
   }
   return supabaseInstance;
@@ -28,9 +25,6 @@ export function getSupabase() {
 let currentSession: Session | null = null;
 
 export function setCurrentSession(session: Session | null) {
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/40d92828-9f17-455f-a0e1-01c5e52c9c7a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'supabase.ts:setCurrentSession',message:'Setting current session',data:{hasSession:!!session,userEmail:session?.user?.email},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-  // #endregion
   currentSession = session;
 }
 

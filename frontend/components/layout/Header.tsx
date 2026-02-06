@@ -17,19 +17,13 @@ export default function Header() {
   const userMenuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/40d92828-9f17-455f-a0e1-01c5e52c9c7a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Header.tsx:render',message:'Header rendering',data:{hasUser:!!user,userEmail:user?.email,hasProfile:!!profile,loading},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
-  // #endregion
+  // Debug telemetry removed - was causing console errors
 
   // Close user menu when clicking outside - use click (not mousedown) so button onClick fires first
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       const target = event.target as Node;
       const isInsideMenu = userMenuRef.current && userMenuRef.current.contains(target);
-      
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/40d92828-9f17-455f-a0e1-01c5e52c9c7a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Header.tsx:handleClickOutside',message:'Click outside handler fired',data:{isInsideMenu,targetTagName:(target as Element)?.tagName,targetClass:(target as Element)?.className?.substring?.(0,50)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'F'})}).catch(()=>{});
-      // #endregion
       
       if (!isInsideMenu) {
         setUserMenuOpen(false);
@@ -41,10 +35,6 @@ export default function Header() {
 
   const handleSignOut = async (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent mousedown handler from closing menu first
-    
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/40d92828-9f17-455f-a0e1-01c5e52c9c7a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Header.tsx:handleSignOut',message:'Sign out button clicked!',data:{hasUser:!!user,userEmail:user?.email},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'F,H'})}).catch(()=>{});
-    // #endregion
     
     setUserMenuOpen(false);
     try {
@@ -138,9 +128,6 @@ export default function Header() {
             <div className="relative" ref={userMenuRef}>
               <button 
                 onClick={() => {
-                  // #region agent log
-                  fetch('http://127.0.0.1:7242/ingest/40d92828-9f17-455f-a0e1-01c5e52c9c7a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Header.tsx:toggleMenu',message:'Profile button clicked',data:{currentState:userMenuOpen,willBe:!userMenuOpen},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'F'})}).catch(()=>{});
-                  // #endregion
                   setUserMenuOpen(!userMenuOpen);
                 }}
                 className="flex items-center gap-2 lg:gap-3 p-1.5 lg:pr-3 rounded-xl hover:bg-themed-tertiary transition-all"
@@ -156,8 +143,8 @@ export default function Header() {
               {userMenuOpen && (
                 <div 
                   className="absolute right-0 mt-2 w-56 rounded-xl bg-themed-secondary border border-themed shadow-xl py-2 z-50 animate-fade-in"
-                  onClick={(e) => { fetch('http://127.0.0.1:7242/ingest/40d92828-9f17-455f-a0e1-01c5e52c9c7a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Header.tsx:dropdown:click',message:'Dropdown div CLICK',data:{target:(e.target as HTMLElement)?.tagName},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'M'})}).catch(()=>{}); e.stopPropagation(); }}
-                  onMouseDown={(e) => { fetch('http://127.0.0.1:7242/ingest/40d92828-9f17-455f-a0e1-01c5e52c9c7a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Header.tsx:dropdown:mousedown',message:'Dropdown div MOUSEDOWN',data:{target:(e.target as HTMLElement)?.tagName},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'M'})}).catch(()=>{}); e.stopPropagation(); }}
+                  onClick={(e) => { e.stopPropagation(); }}
+                  onMouseDown={(e) => { e.stopPropagation(); }}
                 >
                   {/* User info */}
                   <div className="px-4 py-2 border-b border-themed">
@@ -168,16 +155,16 @@ export default function Header() {
                   {/* Menu items */}
                   <div className="py-1">
                     <button 
-                      onMouseDown={(e) => { e.stopPropagation(); fetch('http://127.0.0.1:7242/ingest/40d92828-9f17-455f-a0e1-01c5e52c9c7a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Header.tsx:bookmarksBtn:mousedown',message:'Bookmarks button MOUSEDOWN',timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'N'})}).catch(()=>{}); }}
-                      onClick={(e) => { fetch('http://127.0.0.1:7242/ingest/40d92828-9f17-455f-a0e1-01c5e52c9c7a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Header.tsx:bookmarksBtn:click',message:'Bookmarks button CLICKED',timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'N'})}).catch(()=>{}); handleNavigate(e, "/bookmarks"); }}
+                      onMouseDown={(e) => { e.stopPropagation(); }}
+                      onClick={(e) => { handleNavigate(e, "/bookmarks"); }}
                       className="w-full flex items-center gap-3 px-4 py-2 text-sm text-themed-secondary hover:bg-themed-tertiary hover:text-themed transition-all cursor-pointer"
                     >
                       <Bookmark className="w-4 h-4" />
                       My Bookmarks
                     </button>
                     <button 
-                      onMouseDown={(e) => { e.stopPropagation(); fetch('http://127.0.0.1:7242/ingest/40d92828-9f17-455f-a0e1-01c5e52c9c7a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Header.tsx:progressBtn:mousedown',message:'Progress button MOUSEDOWN',timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'N'})}).catch(()=>{}); }}
-                      onClick={(e) => { fetch('http://127.0.0.1:7242/ingest/40d92828-9f17-455f-a0e1-01c5e52c9c7a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Header.tsx:progressBtn:click',message:'Progress button CLICKED',timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'N'})}).catch(()=>{}); handleMenuItemClick(e, () => toast("Coming soon!", { icon: "🚧" })); }}
+                      onMouseDown={(e) => { e.stopPropagation(); }}
+                      onClick={(e) => { handleMenuItemClick(e, () => toast("Coming soon!", { icon: "🚧" })); }}
                       className="w-full flex items-center gap-3 px-4 py-2 text-sm text-themed-secondary hover:bg-themed-tertiary hover:text-themed transition-all cursor-pointer"
                     >
                       <BarChart3 className="w-4 h-4" />
@@ -188,8 +175,8 @@ export default function Header() {
                   {/* Sign out */}
                   <div className="border-t border-themed pt-1 mt-1">
                     <button 
-                      onMouseDown={(e) => { e.stopPropagation(); fetch('http://127.0.0.1:7242/ingest/40d92828-9f17-455f-a0e1-01c5e52c9c7a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Header.tsx:signoutBtn:mousedown',message:'SignOut button MOUSEDOWN',timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'N'})}).catch(()=>{}); }}
-                      onClick={(e) => { fetch('http://127.0.0.1:7242/ingest/40d92828-9f17-455f-a0e1-01c5e52c9c7a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Header.tsx:signoutBtn:click',message:'SignOut button CLICKED',timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'N'})}).catch(()=>{}); handleSignOut(e); }}
+                      onMouseDown={(e) => { e.stopPropagation(); }}
+                      onClick={(e) => { handleSignOut(e); }}
                       className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-500 hover:bg-red-500/10 transition-all cursor-pointer"
                     >
                       <LogOut className="w-4 h-4" />
