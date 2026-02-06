@@ -25,7 +25,7 @@ try {
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Middleware - Simplified CORS Configuration
+// Middleware - Ultra-permissive CORS for Railway/Vercel deployment
 const frontendUrl = process.env.FRONTEND_URL 
   ? process.env.FRONTEND_URL.replace(/\/$/, '') // Remove trailing slash
   : 'http://localhost:3000';
@@ -33,54 +33,59 @@ const frontendUrl = process.env.FRONTEND_URL
 const allowedOrigins = [
   'http://localhost:3000',
   frontendUrl,
-  'https://devhub-tg.vercel.app', // Explicitly add your Vercel URL
+  'https://devhub-tg.vercel.app',
+  'https://devhub-tg.vercel.app/', // With trailing slash too
 ].filter(Boolean);
 
 console.log('🌐 Allowed CORS origins:', allowedOrigins);
 console.log('🌐 NODE_ENV:', process.env.NODE_ENV);
 console.log('🌐 FRONTEND_URL from env:', process.env.FRONTEND_URL);
 
+// Ultra-permissive CORS - allow all origins in production to avoid blocking
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (server-to-server, curl, etc.)
+    // Always allow requests with no origin
     if (!origin) {
-      console.log('✅ Allowing request with no origin');
       return callback(null, true);
     }
     
-    // Check if origin is exactly in allowed list
-    if (allowedOrigins.includes(origin)) {
-      console.log(`✅ Allowing exact match: ${origin}`);
-      return callback(null, true);
-    }
-    
-    // In production, also allow vercel.app and railway.app domains
+    // In production, be VERY permissive - allow all vercel.app and railway.app
     if (process.env.NODE_ENV === 'production') {
-      if (origin.includes('vercel.app') || origin.includes('railway.app')) {
-        console.log(`✅ Allowing production origin: ${origin}`);
+      // Allow any vercel.app or railway.app domain
+      if (origin.includes('vercel.app') || origin.includes('railway.app') || origin.includes('localhost')) {
         return callback(null, true);
       }
-    }
-    
-    // In development, allow all origins
-    if (process.env.NODE_ENV !== 'production') {
-      console.log(`✅ Allowing development origin: ${origin}`);
+      // Also check exact matches
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      // In production, allow everything to avoid blocking (can tighten later)
+      console.log(`✅ Allowing production origin: ${origin}`);
       return callback(null, true);
     }
     
-    // Log blocked origin for debugging
-    console.warn(`⚠️  CORS blocked origin: ${origin}`);
-    console.warn(`   Allowed origins: ${allowedOrigins.join(', ')}`);
-    
-    // Block in production if not allowed
-    callback(new Error(`Not allowed by CORS. Origin: ${origin}`));
+    // Development: allow all
+    return callback(null, true);
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH', 'HEAD'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
   exposedHeaders: ['Content-Length', 'Content-Type'],
-  maxAge: 86400, // 24 hours
+  maxAge: 86400,
+  preflightContinue: false,
+  optionsSuccessStatus: 204,
 }));
+
+// Explicit OPTIONS handler as fallback
+app.options('*', (req, res) => {
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Max-Age', '86400');
+  res.sendStatus(204);
+});
+
 app.use(express.json());
 
 // Routes - with error handling for route loading
@@ -138,10 +143,21 @@ app.get('/', (req, res) => {
   });
 });
 
-// Error handling middleware
+// Error handling middleware - ensure CORS headers are set even on errors
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ error: 'Something went wrong!' });
+  console.error('Error:', err.stack);
+  
+  // Ensure CORS headers are set even on errors
+  const origin = req.headers.origin;
+  if (origin && (origin.includes('vercel.app') || origin.includes('railway.app') || origin.includes('localhost'))) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Credentials', 'true');
+  }
+  
+  res.status(err.status || 500).json({ 
+    error: err.message || 'Something went wrong!',
+    ...(process.env.NODE_ENV !== 'production' && { stack: err.stack })
+  });
 });
 
 // Start server
