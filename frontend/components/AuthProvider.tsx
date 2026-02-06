@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
-import { User, Session, AuthError } from "@supabase/supabase-js";
+import { User, Session, AuthError, AuthChangeEvent } from "@supabase/supabase-js";
 import { getSupabase, UserProfile, setCurrentSession } from "@/lib/supabase";
 
 interface AuthContextType {
@@ -60,7 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Listen for auth changes FIRST - this is more reliable than getSession()
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, currentSession) => {
+      (event: AuthChangeEvent, currentSession: Session | null) => {
         if (!isMounted) return;
         
         authResolved = true;
