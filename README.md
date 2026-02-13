@@ -70,6 +70,18 @@ This starts:
 
 > **Note**: The app works without Supabase credentials using mock data. Add credentials for persistence.
 
+### 5. Seed the Database (Optional)
+
+To populate the Pathfinder and Resource Wall with real TigerGraph content:
+
+```bash
+cd backend
+npm run seed:resources   # Scrapes TigerGraph docs (takes a few minutes)
+npm run seed:courses     # Imports courses from Teachable
+```
+
+**Pathfinder**: Works even without seeding. If the database is empty, Pathfinder uses curated fallback resources so you always get a useful learning path.
+
 ## Project Structure
 
 ```

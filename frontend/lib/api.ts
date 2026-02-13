@@ -235,6 +235,40 @@ export async function generateLearningPath(answers: {
   }
 }
 
+export async function saveLearningPath(path: LearningPath & {
+  experience?: string;
+  goal?: string;
+  useCase?: string;
+}): Promise<{ pathId: string } | null> {
+  try {
+    const headers = getAuthHeaders();
+    const res = await fetch(`${API_URL}/pathfinder/save-path`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        title: path.title,
+        description: path.description,
+        duration: path.duration,
+        experience_level: path.experience,
+        goal: path.goal,
+        use_case: path.useCase,
+        milestones: path.milestones,
+      }),
+    });
+
+    if (res.status === 401) {
+      return null;
+    }
+
+    if (!res.ok) throw new Error('Failed to save learning path');
+    const data = await res.json();
+    return { pathId: data.pathId };
+  } catch (error) {
+    console.error('API Error:', error);
+    return null;
+  }
+}
+
 export async function getMyLearningPath(): Promise<{ path: UserLearningPath | null }> {
   try {
     const headers = getAuthHeaders();

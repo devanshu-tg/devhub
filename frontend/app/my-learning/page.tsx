@@ -76,43 +76,80 @@ export default function MyLearningPage() {
     resourceIndex: number,
     currentlyCompleted: boolean
   ) => {
-    if (!path) return;
+    if (!path || !progress) return;
 
     const newCompleted = !currentlyCompleted;
 
-    // Optimistic update
-    if (progress) {
-      const updatedResourceProgress = [...progress.resourceProgress];
-      const existingIndex = updatedResourceProgress.findIndex(
-        (r) => r.milestoneIndex === milestoneIndex && r.resourceIndex === resourceIndex
-      );
+    console.log('[My Learning] Toggle resource:', { milestoneIndex, resourceIndex, currentlyCompleted, newCompleted });
 
-      if (existingIndex >= 0) {
-        updatedResourceProgress[existingIndex].completed = newCompleted;
-      } else {
-        updatedResourceProgress.push({
-          id: `temp-${Date.now()}`,
-          milestoneIndex,
-          resourceIndex,
-          completed: newCompleted,
-          completedAt: newCompleted ? new Date().toISOString() : null,
-        });
-      }
+    // Optimistic update - update local state immediately
+    const updatedResourceProgress = [...progress.resourceProgress];
+    const existingIndex = updatedResourceProgress.findIndex(
+      (r) => r.milestoneIndex === milestoneIndex && r.resourceIndex === resourceIndex
+    );
 
-      const completed = updatedResourceProgress.filter((r) => r.completed).length;
-      const total = progress.stats.totalResources;
-      const percentage = Math.round((completed / total) * 100);
-
-      setProgress({
-        ...progress,
-        resourceProgress: updatedResourceProgress,
-        stats: {
-          ...progress.stats,
-          completedResources: completed,
-          progressPercentage: percentage,
-        },
+    if (existingIndex >= 0) {
+      updatedResourceProgress[existingIndex] = {
+        ...updatedResourceProgress[existingIndex],
+        completed: newCompleted,
+        completedAt: newCompleted ? new Date().toISOString() : null,
+      };
+    } else {
+      updatedResourceProgress.push({
+        id: `temp-${Date.now()}`,
+        milestoneIndex,
+        resourceIndex,
+        completed: newCompleted,
+        completedAt: newCompleted ? new Date().toISOString() : null,
       });
     }
+
+    // Check if milestone is now complete (all resources in this milestone are completed)
+    const milestoneResources = path.milestones[milestoneIndex]?.resources || [];
+    const milestoneResourcesCompleted = milestoneResources.every((_, idx) => {
+      const prog = updatedResourceProgress.find(
+        (r) => r.milestoneIndex === milestoneIndex && r.resourceIndex === idx
+      );
+      return prog?.completed || false;
+    });
+
+    // Update milestone progress optimistically
+    const updatedMilestoneProgress = [...progress.milestoneProgress];
+    const milestoneExistingIndex = updatedMilestoneProgress.findIndex(
+      (m) => m.milestoneIndex === milestoneIndex
+    );
+
+    if (milestoneExistingIndex >= 0) {
+      updatedMilestoneProgress[milestoneExistingIndex] = {
+        ...updatedMilestoneProgress[milestoneExistingIndex],
+        completed: milestoneResourcesCompleted,
+        completedAt: milestoneResourcesCompleted ? new Date().toISOString() : null,
+      };
+    } else {
+      updatedMilestoneProgress.push({
+        id: `temp-milestone-${Date.now()}`,
+        milestoneIndex,
+        completed: milestoneResourcesCompleted,
+        completedAt: milestoneResourcesCompleted ? new Date().toISOString() : null,
+      });
+    }
+
+    const completedCount = updatedResourceProgress.filter((r) => r.completed).length;
+    const total = progress.stats.totalResources;
+    const percentage = Math.round((completedCount / total) * 100);
+
+    console.log('[My Learning] Optimistic update:', { completedCount, total, percentage, milestoneResourcesCompleted });
+
+    setProgress({
+      ...progress,
+      resourceProgress: updatedResourceProgress,
+      milestoneProgress: updatedMilestoneProgress,
+      stats: {
+        ...progress.stats,
+        completedResources: completedCount,
+        progressPercentage: percentage,
+      },
+    });
 
     try {
       const result = await updatePathProgress(
@@ -122,20 +159,31 @@ export default function MyLearningPage() {
         newCompleted
       );
 
+      console.log('[My Learning] API response:', result);
+
       if (result.success) {
         if (result.pathComplete) {
           toast.success('🎉 Congratulations! You completed your learning path!');
+          // Only refetch when path is complete to update status
+          const pathProgress = await getPathProgress(path.id);
+          if (pathProgress) setProgress(pathProgress);
         } else if (result.milestoneComplete) {
-          toast.success('✅ Milestone completed!');
+          toast.success('✅ Milestone completed! Next week unlocked!');
         }
-        // Refetch to get accurate progress
-        fetchPath();
+        // Don't refetch on every update - trust the optimistic update
+      } else {
+        // Revert optimistic update on failure
+        console.error('[My Learning] API returned failure');
+        toast.error('Failed to update progress');
+        const pathProgress = await getPathProgress(path.id);
+        if (pathProgress) setProgress(pathProgress);
       }
     } catch (error) {
-      console.error('Failed to update progress:', error);
+      console.error('[My Learning] Failed to update progress:', error);
       toast.error('Failed to update progress');
       // Revert optimistic update
-      fetchPath();
+      const pathProgress = await getPathProgress(path.id);
+      if (pathProgress) setProgress(pathProgress);
     }
   };
 

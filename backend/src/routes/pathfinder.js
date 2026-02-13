@@ -3,6 +3,124 @@ const router = express.Router();
 const { supabase } = require('../config/supabase');
 const { authenticate, optionalAuth } = require('../middleware/auth');
 
+// Fallback resources when Supabase is empty or not connected
+// Curated TigerGraph docs and resources so Pathfinder always shows useful content
+const FALLBACK_RESOURCES = {
+  general: {
+    beginner: [
+      { title: "TigerGraph Introduction", type: "docs", duration: "10 min", url: "https://docs.tigergraph.com/gsql-ref/4.2/intro/", description: "Overview of GSQL and TigerGraph" },
+      { title: "Getting Started with TigerGraph", type: "tutorial", duration: "30 min", url: "https://docs.tigergraph.com/getting-started", description: "Installation and first steps" },
+      { title: "Graph Database Fundamentals", type: "docs", duration: "15 min", url: "https://docs.tigergraph.com/gsql-ref/4.2/intro/", description: "Core graph concepts" },
+    ],
+    intermediate: [
+      { title: "TigerGraph Architecture", type: "docs", duration: "20 min", url: "https://docs.tigergraph.com/tigergraph-server/4.2/intro/", description: "System architecture overview" },
+      { title: "GraphStudio Guide", type: "docs", duration: "25 min", url: "https://docs.tigergraph.com/gui/4.2/intro/", description: "Visual development environment" },
+      { title: "Best Practices", type: "blog", duration: "15 min", url: "https://www.tigergraph.com/blog", description: "Production best practices" },
+    ],
+    advanced: [
+      { title: "Performance Tuning", type: "docs", duration: "45 min", url: "https://docs.tigergraph.com/tigergraph-server/4.2/", description: "Optimization guide" },
+      { title: "Cluster Management", type: "docs", duration: "1 hour", url: "https://docs.tigergraph.com/tigergraph-server/4.2/", description: "Scaling and HA" },
+    ],
+  },
+  gsql: {
+    beginner: [
+      { title: "GSQL Language Reference", type: "docs", duration: "20 min", url: "https://docs.tigergraph.com/gsql-ref/4.2/intro/", description: "GSQL overview" },
+      { title: "SELECT Statement Basics", type: "docs", duration: "25 min", url: "https://docs.tigergraph.com/gsql-ref/4.2/querying/select-statement/", description: "Query fundamentals" },
+      { title: "Pattern Matching Tutorial", type: "tutorial", duration: "45 min", url: "https://docs.tigergraph.com/gsql-ref/4.2/querying/tutorials/pattern-matching/", description: "Path patterns in GSQL" },
+    ],
+    intermediate: [
+      { title: "FROM Clause - Multi-hop", type: "docs", duration: "30 min", url: "https://docs.tigergraph.com/gsql-ref/4.2/querying/select-statement/from-clause-v2", description: "Multi-hop path patterns" },
+      { title: "ACCUM and POST-ACCUM", type: "docs", duration: "25 min", url: "https://docs.tigergraph.com/gsql-ref/4.2/querying/", description: "Accumulation in queries" },
+      { title: "GSQL Syntax Versions", type: "docs", duration: "15 min", url: "https://docs.tigergraph.com/gsql-ref/4.2/querying/syntax-versions", description: "V1, V2, V3 differences" },
+    ],
+    advanced: [
+      { title: "Advanced Pattern Matching", type: "docs", duration: "1 hour", url: "https://docs.tigergraph.com/gsql-ref/4.2/querying/", description: "Complex patterns" },
+      { title: "Graph Algorithms", type: "docs", duration: "45 min", url: "https://docs.tigergraph.com/graph-ml/3.10/intro/", description: "Built-in algorithms" },
+    ],
+  },
+  fraud: {
+    beginner: [
+      { title: "Graph Analytics for Fraud", type: "docs", duration: "20 min", url: "https://docs.tigergraph.com/", description: "Introduction to graph fraud detection" },
+      { title: "Connected Data Patterns", type: "tutorial", duration: "40 min", url: "https://docs.tigergraph.com/gsql-ref/4.2/querying/", description: "Finding patterns in graphs" },
+    ],
+    intermediate: [
+      { title: "Fraud Detection Use Case", type: "tutorial", duration: "1 hour", url: "https://github.com/tigergraph/ecosys", description: "Real-time fraud patterns" },
+      { title: "Graph Algorithms for AML", type: "docs", duration: "45 min", url: "https://docs.tigergraph.com/graph-ml/3.10/intro/", description: "Anti-money laundering" },
+    ],
+    advanced: [
+      { title: "Production Fraud Systems", type: "docs", duration: "1 hour", url: "https://docs.tigergraph.com/", description: "Scaling fraud detection" },
+    ],
+  },
+  graphrag: {
+    intermediate: [
+      { title: "GraphRAG Overview", type: "blog", duration: "15 min", url: "https://www.tigergraph.com/blog", description: "Knowledge graphs for LLMs" },
+      { title: "RAG with TigerGraph", type: "tutorial", duration: "1 hour", url: "https://github.com/tigergraph/ecosys", description: "Building RAG pipelines" },
+    ],
+    advanced: [
+      { title: "GraphRAG Architecture", type: "docs", duration: "45 min", url: "https://docs.tigergraph.com/", description: "Design patterns for GraphRAG" },
+    ],
+  },
+  recommendations: {
+    beginner: [
+      { title: "Recommendation Systems Intro", type: "docs", duration: "20 min", url: "https://docs.tigergraph.com/", description: "Graph-based recommendations" },
+    ],
+    intermediate: [
+      { title: "Collaborative Filtering", type: "tutorial", duration: "1 hour", url: "https://github.com/tigergraph/ecosys", description: "User-item graphs" },
+      { title: "Personalization Patterns", type: "docs", duration: "30 min", url: "https://docs.tigergraph.com/graph-ml/3.10/intro/", description: "Recommendation algorithms" },
+    ],
+  },
+  schema: {
+    beginner: [
+      { title: "Schema Design Basics", type: "docs", duration: "25 min", url: "https://docs.tigergraph.com/gsql-ref/4.2/schema/", description: "Vertex and edge types" },
+    ],
+    intermediate: [
+      { title: "Data Modeling for Graphs", type: "docs", duration: "35 min", url: "https://docs.tigergraph.com/gsql-ref/4.2/schema/", description: "Graph schema design" },
+    ],
+  },
+  cloud: {
+    beginner: [
+      { title: "TigerGraph Cloud", type: "docs", duration: "15 min", url: "https://docs.tigergraph.com/cloud", description: "Cloud deployment" },
+    ],
+    intermediate: [
+      { title: "Production Deployment", type: "docs", duration: "30 min", url: "https://docs.tigergraph.com/tigergraph-server/4.2/", description: "Deploy and scale" },
+    ],
+  },
+};
+
+function getFallbackResources(milestone) {
+  const topics = milestone.topics || ['general'];
+  const skillLevel = milestone.skillLevel || 'beginner';
+  const count = milestone.resourceCount || 3;
+
+  const collected = [];
+  const seen = new Set();
+
+  for (const topic of topics) {
+    const topicResources = FALLBACK_RESOURCES[topic] || FALLBACK_RESOURCES.general;
+    const levelResources = topicResources[skillLevel] || topicResources.beginner || topicResources.intermediate || [];
+    for (const r of levelResources) {
+      const key = r.url + r.title;
+      if (!seen.has(key)) {
+        seen.add(key);
+        collected.push({
+          id: `fallback-${collected.length}`,
+          title: r.title,
+          description: r.description,
+          type: r.type,
+          duration: r.duration,
+          url: r.url,
+          thumbnail: "https://www.tigergraph.com/wp-content/uploads/2023/02/tigergraph-logo-orange.svg",
+          skillLevel: skillLevel,
+        });
+        if (collected.length >= count) break;
+      }
+    }
+    if (collected.length >= count) break;
+  }
+
+  return collected.slice(0, count);
+}
+
 // Topic keywords for matching resources
 const TOPIC_KEYWORDS = {
   gsql: ['gsql', 'query', 'language', 'syntax'],
@@ -273,10 +391,13 @@ router.post('/generate', optionalAuth, async (req, res) => {
       pathTemplate.description += ' With full-time dedication, you can complete this faster and go deeper.';
     }
 
-    // Fetch real resources for each milestone
+    // Fetch real resources for each milestone (use fallback when DB returns empty)
     const milestonesWithResources = await Promise.all(
       pathTemplate.milestones.map(async (milestone) => {
-        const resources = await fetchResourcesForMilestone(milestone);
+        let resources = await fetchResourcesForMilestone(milestone);
+        if (!resources || resources.length === 0) {
+          resources = getFallbackResources(milestone);
+        }
         return {
           week: milestone.week,
           title: milestone.title,
@@ -293,38 +414,55 @@ router.post('/generate', optionalAuth, async (req, res) => {
       milestones: milestonesWithResources,
     };
 
-    // Save to user_learning_paths if user is authenticated
-    if (req.user && supabase) {
-      try {
-        const { data, error } = await supabase
-          .from('user_learning_paths')
-          .insert([{
-            user_id: req.user.id,
-            title: path.title,
-            description: path.description,
-            duration: path.duration,
-            experience_level: experience,
-            goal: goal,
-            use_case: usecase,
-            milestones: path.milestones,
-            status: 'active',
-          }])
-          .select()
-          .single();
-
-        if (!error && data) {
-          path.pathId = data.id;
-        }
-      } catch (error) {
-        console.error('Failed to save learning path:', error);
-        // Continue anyway - saving is optional
-      }
-    }
-    
     res.json(path);
   } catch (error) {
     console.error('Generate path error:', error);
     res.status(500).json({ error: 'Failed to generate learning path' });
+  }
+});
+
+// POST /api/pathfinder/save-path - Save learning path to user's My Learning (authenticated)
+router.post('/save-path', authenticate, async (req, res) => {
+  try {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Database not available' });
+    }
+
+    const { title, description, duration, experience_level, goal, use_case, milestones } = req.body;
+
+    if (!title || !milestones || !Array.isArray(milestones)) {
+      return res.status(400).json({ error: 'Missing required fields: title, milestones' });
+    }
+
+    // Mark any existing active path as paused
+    await supabase
+      .from('user_learning_paths')
+      .update({ status: 'paused', updated_at: new Date().toISOString() })
+      .eq('user_id', req.user.id)
+      .eq('status', 'active');
+
+    const { data, error } = await supabase
+      .from('user_learning_paths')
+      .insert([{
+        user_id: req.user.id,
+        title,
+        description: description || null,
+        duration: duration || null,
+        experience_level: experience_level || null,
+        goal: goal || null,
+        use_case: use_case || null,
+        milestones,
+        status: 'active',
+      }])
+      .select('id')
+      .single();
+
+    if (error) throw error;
+
+    res.json({ pathId: data.id });
+  } catch (error) {
+    console.error('Save path error:', error);
+    res.status(500).json({ error: 'Failed to save learning path' });
   }
 });
 
@@ -365,6 +503,7 @@ router.get('/progress/:pathId', authenticate, async (req, res) => {
     if (!supabase) {
       return res.status(503).json({ error: 'Database not available' });
     }
+    
 
     const { pathId } = req.params;
 
@@ -379,7 +518,7 @@ router.get('/progress/:pathId', authenticate, async (req, res) => {
     if (pathError) throw pathError;
 
     // Fetch resource progress
-    const { data: resourceProgress, error: progressError } = await supabase
+    const { data: resourceProgressRaw, error: progressError } = await supabase
       .from('user_path_progress')
       .select('*')
       .eq('path_id', pathId)
@@ -388,7 +527,7 @@ router.get('/progress/:pathId', authenticate, async (req, res) => {
     if (progressError) throw progressError;
 
     // Fetch milestone progress
-    const { data: milestoneProgress, error: milestoneError } = await supabase
+    const { data: milestoneProgressRaw, error: milestoneError } = await supabase
       .from('user_milestone_progress')
       .select('*')
       .eq('path_id', pathId)
@@ -396,11 +535,33 @@ router.get('/progress/:pathId', authenticate, async (req, res) => {
 
     if (milestoneError) throw milestoneError;
 
+    // Transform snake_case to camelCase for frontend
+    const resourceProgress = (resourceProgressRaw || []).map(r => ({
+      id: r.id,
+      milestoneIndex: r.milestone_index,
+      resourceIndex: r.resource_index,
+      resourceId: r.resource_id,
+      completed: r.completed,
+      completedAt: r.completed_at,
+    }));
+
+    const milestoneProgress = (milestoneProgressRaw || []).map(m => ({
+      id: m.id,
+      milestoneIndex: m.milestone_index,
+      completed: m.completed,
+      completedAt: m.completed_at,
+    }));
+
     // Calculate overall progress
     const milestones = path.milestones || [];
     const totalResources = milestones.reduce((sum, m) => sum + (m.resources?.length || 0), 0);
     const completedResources = resourceProgress.filter(r => r.completed).length;
     const progressPercentage = totalResources > 0 ? Math.round((completedResources / totalResources) * 100) : 0;
+
+    console.log('[Progress API] Path:', pathId);
+    console.log('[Progress API] Resource progress:', resourceProgress.length, 'records');
+    console.log('[Progress API] Milestone progress:', milestoneProgress.length, 'records');
+    console.log('[Progress API] Stats:', { totalResources, completedResources, progressPercentage });
 
     res.json({
       path,
@@ -428,6 +589,8 @@ router.post('/progress/:pathId', authenticate, async (req, res) => {
     const { pathId } = req.params;
     const { milestoneIndex, resourceIndex, completed } = req.body;
 
+    console.log('[Progress Update] Request:', { pathId, milestoneIndex, resourceIndex, completed, userId: req.user.id });
+
     // Verify path belongs to user
     const { data: path, error: pathError } = await supabase
       .from('user_learning_paths')
@@ -437,30 +600,42 @@ router.post('/progress/:pathId', authenticate, async (req, res) => {
       .single();
 
     if (pathError) {
+      console.error('[Progress Update] Path not found:', pathError);
       return res.status(404).json({ error: 'Path not found' });
     }
 
     // Get resource ID from path
     const milestone = path.milestones[milestoneIndex];
     const resource = milestone?.resources[resourceIndex];
+    
+    console.log('[Progress Update] Milestone:', milestone?.title, '| Resource:', resource?.title);
+    
+    // Only use resource_id if it's a valid UUID (not fallback IDs like "fallback-0")
+    const isValidUUID = resource?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(resource.id);
+    const resourceId = isValidUUID ? resource.id : null;
 
     // Upsert resource progress
-    const { error: progressError } = await supabase
+    const { data: upsertData, error: progressError } = await supabase
       .from('user_path_progress')
       .upsert({
         user_id: req.user.id,
         path_id: pathId,
         milestone_index: milestoneIndex,
         resource_index: resourceIndex,
-        resource_id: resource?.id || null,
+        resource_id: resourceId,
         completed: completed,
         completed_at: completed ? new Date().toISOString() : null,
         updated_at: new Date().toISOString(),
       }, {
         onConflict: 'path_id,milestone_index,resource_index',
-      });
+      })
+      .select();
 
-    if (progressError) throw progressError;
+    if (progressError) {
+      console.error('[Progress Update] Upsert error:', progressError);
+      throw progressError;
+    }
+    console.log('[Progress Update] Upsert success:', upsertData);
 
     // Check if milestone is complete
     const milestoneResources = milestone?.resources || [];
@@ -471,12 +646,17 @@ router.post('/progress/:pathId', authenticate, async (req, res) => {
       .eq('user_id', req.user.id)
       .eq('milestone_index', milestoneIndex);
 
+    console.log('[Progress Update] Milestone resources:', milestoneResources.length, '| Progress records:', milestoneResourceProgress?.length);
+    console.log('[Progress Update] All completed?', milestoneResourceProgress?.map(r => r.completed));
+
     const milestoneComplete = milestoneResources.length > 0 && 
       milestoneResourceProgress?.length === milestoneResources.length &&
       milestoneResourceProgress.every(r => r.completed);
 
+    console.log('[Progress Update] Milestone complete?', milestoneComplete);
+
     // Update milestone progress
-    await supabase
+    const { error: milestoneUpsertError } = await supabase
       .from('user_milestone_progress')
       .upsert({
         user_id: req.user.id,
@@ -489,6 +669,10 @@ router.post('/progress/:pathId', authenticate, async (req, res) => {
         onConflict: 'path_id,milestone_index',
       });
 
+    if (milestoneUpsertError) {
+      console.error('[Progress Update] Milestone upsert error:', milestoneUpsertError);
+    }
+
     // Check if entire path is complete
     const { data: allMilestones } = await supabase
       .from('user_milestone_progress')
@@ -500,6 +684,8 @@ router.post('/progress/:pathId', authenticate, async (req, res) => {
       allMilestones?.length === path.milestones.length &&
       allMilestones.every(m => m.completed);
 
+    console.log('[Progress Update] Path complete?', pathComplete);
+
     if (pathComplete && path.status !== 'completed') {
       await supabase
         .from('user_learning_paths')
@@ -509,7 +695,7 @@ router.post('/progress/:pathId', authenticate, async (req, res) => {
 
     res.json({ success: true, milestoneComplete, pathComplete });
   } catch (error) {
-    console.error('Update progress error:', error);
+    console.error('[Progress Update] Error:', error);
     res.status(500).json({ error: 'Failed to update progress' });
   }
 });

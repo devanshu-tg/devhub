@@ -17,8 +17,10 @@ import {
   RotateCcw
 } from "lucide-react";
 import clsx from "clsx";
-import { generateLearningPath, type LearningPath } from "@/lib/api";
+import { generateLearningPath, saveLearningPath, type LearningPath } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
+import AuthModal from "@/components/ui/AuthModal";
+import toast from "react-hot-toast";
 
 interface QuizQuestion {
   id: string;
@@ -80,6 +82,8 @@ export default function PathfinderPage() {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [learningPath, setLearningPath] = useState<LearningPath | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   const handleAnswer = (questionId: string, value: string) => {
     setAnswers({ ...answers, [questionId]: value });
@@ -118,6 +122,30 @@ export default function PathfinderPage() {
     setCurrentQuestion(0);
     setAnswers({});
     setLearningPath(null);
+  };
+
+  const handleAddToMyLearning = async () => {
+    if (!learningPath || !user) return;
+    setIsSaving(true);
+    try {
+      const result = await saveLearningPath({
+        ...learningPath,
+        experience: answers.experience,
+        goal: answers.goal,
+        useCase: answers.usecase,
+      });
+      if (result?.pathId) {
+        toast.success("Path added to My Learning!");
+        router.push("/my-learning");
+      } else {
+        toast.error("Failed to save path. Please try again.");
+      }
+    } catch (error) {
+      console.error("Failed to save path:", error);
+      toast.error("Failed to save path. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const currentQ = quizQuestions[currentQuestion];
@@ -286,14 +314,17 @@ export default function PathfinderPage() {
                     {/* Resources */}
                     <div className="space-y-2">
                       {milestone.resources.map((resource, rIdx) => (
-                        <div
+                        <a
                           key={rIdx}
-                          className="flex items-center gap-3 p-3 rounded-lg bg-themed-tertiary/50 hover:bg-themed-tertiary transition-all cursor-pointer group"
+                          href={resource.url || "#"}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-3 p-3 rounded-lg bg-themed-tertiary/50 hover:bg-themed-tertiary transition-all cursor-pointer group block"
                         >
                           <div className="w-8 h-8 rounded-lg bg-themed-tertiary flex items-center justify-center">
-                            {resource.type === "video" && <Zap className="w-4 h-4 text-amber-400" />}
-                            {resource.type === "article" && <BookOpen className="w-4 h-4 text-blue-400" />}
-                            {resource.type === "tutorial" && <Code className="w-4 h-4 text-emerald-400" />}
+                            {(resource.type === "video" || resource.type === "course") && <Zap className="w-4 h-4 text-amber-400" />}
+                            {(resource.type === "article" || resource.type === "blog") && <BookOpen className="w-4 h-4 text-blue-400" />}
+                            {(resource.type === "tutorial" || resource.type === "code") && <Code className="w-4 h-4 text-emerald-400" />}
                             {resource.type === "docs" && <BookOpen className="w-4 h-4 text-purple-400" />}
                           </div>
                           <div className="flex-1">
@@ -303,7 +334,7 @@ export default function PathfinderPage() {
                             <p className="text-xs text-themed-muted">{resource.type} • {resource.duration}</p>
                           </div>
                           <ChevronRight className="w-4 h-4 text-themed-muted group-hover:text-tiger-orange transition-colors" />
-                        </div>
+                        </a>
                       ))}
                     </div>
                   </div>
@@ -320,26 +351,42 @@ export default function PathfinderPage() {
           <div className="flex justify-center gap-4">
             <button
               onClick={handleRestart}
-              className="px-6 py-3 rounded-xl bg-themed-tertiary text-themed font-medium hover:bg-themed-tertiary transition-all flex items-center gap-2"
+              disabled={isSaving}
+              className="px-6 py-3 rounded-xl bg-themed-tertiary text-themed font-medium hover:bg-themed-tertiary transition-all flex items-center gap-2 disabled:opacity-50"
             >
               <RotateCcw className="w-4 h-4" />
               Retake Quiz
             </button>
             {user ? (
-              <button 
-                onClick={() => router.push('/my-learning')}
+              <button
+                onClick={handleAddToMyLearning}
+                disabled={isSaving}
+                className="px-6 py-3 rounded-xl bg-tiger-orange text-themed font-medium hover:bg-tiger-orange-dark transition-all flex items-center gap-2 disabled:opacity-50"
+              >
+                {isSaving ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <Sparkles className="w-5 h-5" />
+                )}
+                {isSaving ? "Adding..." : "Add to My Learning"}
+              </button>
+            ) : (
+              <button
+                onClick={() => setShowAuthModal(true)}
                 className="px-6 py-3 rounded-xl bg-tiger-orange text-themed font-medium hover:bg-tiger-orange-dark transition-all flex items-center gap-2"
               >
                 <Sparkles className="w-5 h-5" />
-                Go to My Learning
-              </button>
-            ) : (
-              <button className="px-6 py-3 rounded-xl bg-tiger-orange text-themed font-medium hover:bg-tiger-orange-dark transition-all flex items-center gap-2">
-                <Sparkles className="w-5 h-5" />
-                Sign in to Save Path
+                Sign in to Add to My Learning
               </button>
             )}
           </div>
+
+          {/* Auth Modal for guests */}
+          <AuthModal
+            isOpen={showAuthModal}
+            onClose={() => setShowAuthModal(false)}
+            defaultTab="login"
+          />
         </div>
       )}
     </div>
