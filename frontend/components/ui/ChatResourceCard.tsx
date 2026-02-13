@@ -11,7 +11,7 @@ import {
   BookmarkCheck
 } from "lucide-react";
 import clsx from "clsx";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import { useAuth } from "@/components/AuthProvider";
 import { addBookmark, removeBookmark, type ChatResource } from "@/lib/api";
@@ -52,6 +52,10 @@ export default function ChatResourceCard({
   const { user } = useAuth();
   const [bookmarked, setBookmarked] = useState(isBookmarked);
   const [bookmarkLoading, setBookmarkLoading] = useState(false);
+
+  useEffect(() => {
+    setBookmarked(isBookmarked);
+  }, [isBookmarked]);
   
   const Icon = typeIcons[resource.type] || FileText;
   
@@ -95,30 +99,49 @@ export default function ChatResourceCard({
   
   if (compact) {
     return (
-      <button
-        onClick={handleClick}
-        className="flex items-center gap-3 p-3 rounded-xl bg-themed-tertiary border border-themed hover:border-tiger-orange transition-all text-left w-full group"
-      >
-        <div className={clsx(
-          "w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 border",
-          typeColors[resource.type]
-        )}>
-          <Icon className="w-5 h-5" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-themed truncate group-hover:text-tiger-orange transition-colors">
-            {resource.title}
-          </p>
-          <div className="flex items-center gap-2 mt-1">
-            <span className="text-xs text-themed-muted capitalize">{resource.type}</span>
-            <span className="text-themed-muted">•</span>
-            <span className={clsx("text-xs px-1.5 py-0.5 rounded capitalize", skillColors[resource.skillLevel])}>
-              {resource.skillLevel}
-            </span>
+      <div className="flex items-center gap-3 p-3 rounded-xl bg-themed-tertiary border border-themed hover:border-tiger-orange transition-all w-full group relative">
+        <button
+          onClick={handleClick}
+          className="flex items-center gap-3 flex-1 min-w-0 text-left"
+        >
+          <div className={clsx(
+            "w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 border",
+            typeColors[resource.type]
+          )}>
+            <Icon className="w-5 h-5" />
           </div>
-        </div>
-        <ExternalLink className="w-4 h-4 text-themed-muted group-hover:text-tiger-orange transition-colors flex-shrink-0" />
-      </button>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-themed truncate group-hover:text-tiger-orange transition-colors">
+              {resource.title}
+            </p>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-xs text-themed-muted capitalize">{resource.type}</span>
+              <span className="text-themed-muted">•</span>
+              <span className={clsx("text-xs px-1.5 py-0.5 rounded capitalize", skillColors[resource.skillLevel])}>
+                {resource.skillLevel}
+              </span>
+            </div>
+          </div>
+          <ExternalLink className="w-4 h-4 text-themed-muted group-hover:text-tiger-orange transition-colors flex-shrink-0" />
+        </button>
+        <button
+          onClick={handleBookmark}
+          disabled={bookmarkLoading}
+          className={clsx(
+            "p-1.5 rounded-lg transition-all flex-shrink-0",
+            bookmarked 
+              ? "bg-tiger-orange text-white" 
+              : "bg-themed-secondary text-themed-muted hover:bg-tiger-orange hover:text-white border border-themed"
+          )}
+          title={bookmarked ? "Remove from bookmarks" : "Add to bookmarks"}
+        >
+          {bookmarked ? (
+            <BookmarkCheck className="w-4 h-4" />
+          ) : (
+            <Bookmark className="w-4 h-4" />
+          )}
+        </button>
+      </div>
     );
   }
   
