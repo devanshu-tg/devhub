@@ -350,7 +350,7 @@ async function handleQAMode(req, res, message, history) {
   // Try to use Gemini for direct Q&A (no resources in Q&A mode)
   if (genAI) {
     try {
-      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+      const model = genAI.getGenerativeModel({ model: "gemini-3-pro-preview" });
       
       // RAG: Retrieve relevant context from knowledge base
       let ragContext = '';
@@ -473,7 +473,7 @@ In the meantime, you can:
       })),
     ];
 
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-3-pro-preview" });
     const chat = model.startChat({ history: chatHistory });
     const result = await chat.sendMessage(message);
     let aiResponse = result.response.text();

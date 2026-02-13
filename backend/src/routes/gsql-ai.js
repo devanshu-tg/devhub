@@ -460,7 +460,7 @@ router.post('/generate', authenticate, async (req, res) => {
     }
 
     // Initialize the model
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-3-pro-preview" });
 
     // Build chat history for conversational context
     const chatHistory = [
