@@ -9,80 +9,124 @@ const FALLBACK_RESOURCES = {
   general: {
     beginner: [
       { title: "TigerGraph Introduction", type: "docs", duration: "10 min", url: "https://docs.tigergraph.com/gsql-ref/4.2/intro/", description: "Overview of GSQL and TigerGraph" },
-      { title: "Getting Started with TigerGraph", type: "tutorial", duration: "30 min", url: "https://docs.tigergraph.com/getting-started", description: "Installation and first steps" },
-      { title: "Graph Database Fundamentals", type: "docs", duration: "15 min", url: "https://docs.tigergraph.com/gsql-ref/4.2/intro/", description: "Core graph concepts" },
+      { title: "Getting Started with TigerGraph", type: "tutorial", duration: "30 min", url: "https://docs.tigergraph.com/tigergraph-server/4.2/getting-started/", description: "Installation and first steps" },
+      { title: "Graph Database Fundamentals", type: "docs", duration: "15 min", url: "https://docs.tigergraph.com/tigergraph-server/4.2/intro/", description: "Core graph concepts" },
+      { title: "TigerGraph Cloud Quick Start", type: "tutorial", duration: "20 min", url: "https://docs.tigergraph.com/cloud/start/overview", description: "Start with TigerGraph Cloud" },
     ],
     intermediate: [
       { title: "TigerGraph Architecture", type: "docs", duration: "20 min", url: "https://docs.tigergraph.com/tigergraph-server/4.2/intro/", description: "System architecture overview" },
-      { title: "GraphStudio Guide", type: "docs", duration: "25 min", url: "https://docs.tigergraph.com/gui/4.2/intro/", description: "Visual development environment" },
-      { title: "Best Practices", type: "blog", duration: "15 min", url: "https://www.tigergraph.com/blog", description: "Production best practices" },
+      { title: "GraphStudio Guide", type: "docs", duration: "25 min", url: "https://docs.tigergraph.com/gui/4.2/graphstudio/overview", description: "Visual development environment" },
+      { title: "Data Loading Overview", type: "docs", duration: "30 min", url: "https://docs.tigergraph.com/gsql-ref/4.2/ddl-and-loading/", description: "Loading data into TigerGraph" },
+      { title: "Best Practices Guide", type: "blog", duration: "15 min", url: "https://www.tigergraph.com/blog/", description: "Production best practices" },
     ],
     advanced: [
-      { title: "Performance Tuning", type: "docs", duration: "45 min", url: "https://docs.tigergraph.com/tigergraph-server/4.2/", description: "Optimization guide" },
-      { title: "Cluster Management", type: "docs", duration: "1 hour", url: "https://docs.tigergraph.com/tigergraph-server/4.2/", description: "Scaling and HA" },
+      { title: "Performance Tuning Guide", type: "docs", duration: "45 min", url: "https://docs.tigergraph.com/tigergraph-server/4.2/system-management/memory-management", description: "Optimization techniques" },
+      { title: "Cluster Management", type: "docs", duration: "1 hour", url: "https://docs.tigergraph.com/tigergraph-server/4.2/cluster-and-ha-management/", description: "Scaling and high availability" },
+      { title: "Security Configuration", type: "docs", duration: "30 min", url: "https://docs.tigergraph.com/tigergraph-server/4.2/security/", description: "Enterprise security setup" },
     ],
   },
   gsql: {
     beginner: [
-      { title: "GSQL Language Reference", type: "docs", duration: "20 min", url: "https://docs.tigergraph.com/gsql-ref/4.2/intro/", description: "GSQL overview" },
+      { title: "GSQL Language Reference", type: "docs", duration: "20 min", url: "https://docs.tigergraph.com/gsql-ref/4.2/intro/", description: "GSQL overview and basics" },
       { title: "SELECT Statement Basics", type: "docs", duration: "25 min", url: "https://docs.tigergraph.com/gsql-ref/4.2/querying/select-statement/", description: "Query fundamentals" },
-      { title: "Pattern Matching Tutorial", type: "tutorial", duration: "45 min", url: "https://docs.tigergraph.com/gsql-ref/4.2/querying/tutorials/pattern-matching/", description: "Path patterns in GSQL" },
+      { title: "Pattern Matching Tutorial", type: "tutorial", duration: "45 min", url: "https://docs.tigergraph.com/gsql-ref/4.2/tutorials/pattern-matching/", description: "Path patterns in GSQL" },
+      { title: "Writing Your First Query", type: "tutorial", duration: "30 min", url: "https://docs.tigergraph.com/gsql-ref/4.2/querying/query-operations", description: "Create and run queries" },
     ],
     intermediate: [
-      { title: "FROM Clause - Multi-hop", type: "docs", duration: "30 min", url: "https://docs.tigergraph.com/gsql-ref/4.2/querying/select-statement/from-clause-v2", description: "Multi-hop path patterns" },
-      { title: "ACCUM and POST-ACCUM", type: "docs", duration: "25 min", url: "https://docs.tigergraph.com/gsql-ref/4.2/querying/", description: "Accumulation in queries" },
-      { title: "GSQL Syntax Versions", type: "docs", duration: "15 min", url: "https://docs.tigergraph.com/gsql-ref/4.2/querying/syntax-versions", description: "V1, V2, V3 differences" },
+      { title: "FROM Clause - Multi-hop Patterns", type: "docs", duration: "30 min", url: "https://docs.tigergraph.com/gsql-ref/4.2/querying/select-statement/from-clause", description: "Multi-hop path patterns" },
+      { title: "ACCUM and POST-ACCUM", type: "docs", duration: "25 min", url: "https://docs.tigergraph.com/gsql-ref/4.2/querying/accumulators", description: "Accumulation in queries" },
+      { title: "Control Flow Statements", type: "docs", duration: "20 min", url: "https://docs.tigergraph.com/gsql-ref/4.2/querying/control-flow-statements", description: "IF, WHILE, FOREACH in GSQL" },
+      { title: "Query Parameters", type: "docs", duration: "15 min", url: "https://docs.tigergraph.com/gsql-ref/4.2/querying/query-operations", description: "Parameterized queries" },
     ],
     advanced: [
-      { title: "Advanced Pattern Matching", type: "docs", duration: "1 hour", url: "https://docs.tigergraph.com/gsql-ref/4.2/querying/", description: "Complex patterns" },
-      { title: "Graph Algorithms", type: "docs", duration: "45 min", url: "https://docs.tigergraph.com/graph-ml/3.10/intro/", description: "Built-in algorithms" },
+      { title: "Advanced Pattern Matching", type: "docs", duration: "1 hour", url: "https://docs.tigergraph.com/gsql-ref/4.2/querying/select-statement/", description: "Complex traversal patterns" },
+      { title: "Graph Algorithms Library", type: "docs", duration: "45 min", url: "https://docs.tigergraph.com/graph-ml/current/intro/", description: "Built-in graph algorithms" },
+      { title: "Query Optimization", type: "docs", duration: "40 min", url: "https://docs.tigergraph.com/gsql-ref/4.2/querying/query-optimizer", description: "Writing efficient queries" },
     ],
   },
   fraud: {
     beginner: [
-      { title: "Graph Analytics for Fraud", type: "docs", duration: "20 min", url: "https://docs.tigergraph.com/", description: "Introduction to graph fraud detection" },
-      { title: "Connected Data Patterns", type: "tutorial", duration: "40 min", url: "https://docs.tigergraph.com/gsql-ref/4.2/querying/", description: "Finding patterns in graphs" },
+      { title: "Graph Analytics for Fraud Detection", type: "docs", duration: "20 min", url: "https://docs.tigergraph.com/graph-ml/current/intro/", description: "Introduction to graph fraud detection" },
+      { title: "Connected Data Patterns", type: "tutorial", duration: "40 min", url: "https://docs.tigergraph.com/gsql-ref/4.2/tutorials/pattern-matching/", description: "Finding patterns in connected data" },
+      { title: "Fraud Detection Concepts", type: "blog", duration: "15 min", url: "https://www.tigergraph.com/blog/", description: "Why graphs excel at fraud detection" },
     ],
     intermediate: [
-      { title: "Fraud Detection Use Case", type: "tutorial", duration: "1 hour", url: "https://github.com/tigergraph/ecosys", description: "Real-time fraud patterns" },
-      { title: "Graph Algorithms for AML", type: "docs", duration: "45 min", url: "https://docs.tigergraph.com/graph-ml/3.10/intro/", description: "Anti-money laundering" },
+      { title: "Fraud Detection Starter Kit", type: "tutorial", duration: "1 hour", url: "https://github.com/tigergraph/ecosys", description: "Real-time fraud detection patterns" },
+      { title: "Graph Algorithms for AML", type: "docs", duration: "45 min", url: "https://docs.tigergraph.com/graph-ml/current/community-detection/", description: "Anti-money laundering techniques" },
+      { title: "Community Detection", type: "docs", duration: "30 min", url: "https://docs.tigergraph.com/graph-ml/current/community-detection/", description: "Find fraud rings" },
     ],
     advanced: [
-      { title: "Production Fraud Systems", type: "docs", duration: "1 hour", url: "https://docs.tigergraph.com/", description: "Scaling fraud detection" },
+      { title: "Enterprise Fraud Systems", type: "docs", duration: "1 hour", url: "https://docs.tigergraph.com/tigergraph-server/4.2/", description: "Scaling fraud detection" },
+      { title: "Real-time Streaming Analytics", type: "docs", duration: "45 min", url: "https://docs.tigergraph.com/tigergraph-server/4.2/data-loading/", description: "Stream processing for fraud" },
+      { title: "ML Integration for Fraud", type: "docs", duration: "40 min", url: "https://docs.tigergraph.com/graph-ml/current/", description: "Combine ML with graph analytics" },
     ],
   },
   graphrag: {
+    beginner: [
+      { title: "Introduction to Knowledge Graphs", type: "docs", duration: "20 min", url: "https://docs.tigergraph.com/gsql-ref/4.2/intro/", description: "What are knowledge graphs" },
+      { title: "Graph Basics for AI", type: "tutorial", duration: "30 min", url: "https://docs.tigergraph.com/tigergraph-server/4.2/getting-started/", description: "Graphs as AI foundations" },
+      { title: "GraphRAG Concepts", type: "blog", duration: "15 min", url: "https://www.tigergraph.com/blog/", description: "Introduction to GraphRAG" },
+    ],
     intermediate: [
-      { title: "GraphRAG Overview", type: "blog", duration: "15 min", url: "https://www.tigergraph.com/blog", description: "Knowledge graphs for LLMs" },
-      { title: "RAG with TigerGraph", type: "tutorial", duration: "1 hour", url: "https://github.com/tigergraph/ecosys", description: "Building RAG pipelines" },
+      { title: "GraphRAG Overview", type: "blog", duration: "15 min", url: "https://www.tigergraph.com/blog/", description: "Knowledge graphs for LLMs" },
+      { title: "Building RAG Pipelines", type: "tutorial", duration: "1 hour", url: "https://github.com/tigergraph/ecosys", description: "Connect graphs to LLMs" },
+      { title: "Vector Search with Graphs", type: "docs", duration: "30 min", url: "https://docs.tigergraph.com/graph-ml/current/", description: "Hybrid vector-graph search" },
     ],
     advanced: [
-      { title: "GraphRAG Architecture", type: "docs", duration: "45 min", url: "https://docs.tigergraph.com/", description: "Design patterns for GraphRAG" },
+      { title: "GraphRAG Architecture Patterns", type: "docs", duration: "45 min", url: "https://docs.tigergraph.com/tigergraph-server/4.2/", description: "Enterprise GraphRAG design" },
+      { title: "Scaling Knowledge Graphs", type: "docs", duration: "40 min", url: "https://docs.tigergraph.com/tigergraph-server/4.2/cluster-and-ha-management/", description: "Production-scale GraphRAG" },
+      { title: "Advanced Reasoning with Graphs", type: "docs", duration: "35 min", url: "https://docs.tigergraph.com/graph-ml/current/", description: "Multi-hop reasoning for AI" },
     ],
   },
   recommendations: {
     beginner: [
-      { title: "Recommendation Systems Intro", type: "docs", duration: "20 min", url: "https://docs.tigergraph.com/", description: "Graph-based recommendations" },
+      { title: "Recommendation Systems Intro", type: "docs", duration: "20 min", url: "https://docs.tigergraph.com/graph-ml/current/intro/", description: "Graph-based recommendations" },
+      { title: "User-Item Graph Modeling", type: "tutorial", duration: "30 min", url: "https://docs.tigergraph.com/gsql-ref/4.2/schema/", description: "Model recommendation data" },
+      { title: "Simple Recommendation Query", type: "tutorial", duration: "25 min", url: "https://docs.tigergraph.com/gsql-ref/4.2/tutorials/", description: "Your first recommendation" },
     ],
     intermediate: [
-      { title: "Collaborative Filtering", type: "tutorial", duration: "1 hour", url: "https://github.com/tigergraph/ecosys", description: "User-item graphs" },
-      { title: "Personalization Patterns", type: "docs", duration: "30 min", url: "https://docs.tigergraph.com/graph-ml/3.10/intro/", description: "Recommendation algorithms" },
+      { title: "Collaborative Filtering with Graphs", type: "tutorial", duration: "1 hour", url: "https://github.com/tigergraph/ecosys", description: "User-item collaborative filtering" },
+      { title: "Personalization Algorithms", type: "docs", duration: "30 min", url: "https://docs.tigergraph.com/graph-ml/current/", description: "Graph-based personalization" },
+      { title: "Content-based Recommendations", type: "docs", duration: "35 min", url: "https://docs.tigergraph.com/graph-ml/current/", description: "Feature-based recommendations" },
+    ],
+    advanced: [
+      { title: "Real-time Recommendation Engine", type: "docs", duration: "45 min", url: "https://docs.tigergraph.com/tigergraph-server/4.2/", description: "Sub-second recommendations" },
+      { title: "Hybrid Recommendation Systems", type: "docs", duration: "40 min", url: "https://docs.tigergraph.com/graph-ml/current/", description: "Combine multiple approaches" },
+      { title: "A/B Testing Recommendations", type: "blog", duration: "20 min", url: "https://www.tigergraph.com/blog/", description: "Experiment with recommendations" },
     ],
   },
   schema: {
     beginner: [
-      { title: "Schema Design Basics", type: "docs", duration: "25 min", url: "https://docs.tigergraph.com/gsql-ref/4.2/schema/", description: "Vertex and edge types" },
+      { title: "Schema Design Basics", type: "docs", duration: "25 min", url: "https://docs.tigergraph.com/gsql-ref/4.2/ddl-and-loading/defining-a-graph-schema", description: "Vertex and edge types" },
+      { title: "Vertex Types Tutorial", type: "tutorial", duration: "20 min", url: "https://docs.tigergraph.com/gsql-ref/4.2/ddl-and-loading/", description: "Creating vertex types" },
+      { title: "Edge Types Tutorial", type: "tutorial", duration: "20 min", url: "https://docs.tigergraph.com/gsql-ref/4.2/ddl-and-loading/", description: "Creating edge types" },
     ],
     intermediate: [
-      { title: "Data Modeling for Graphs", type: "docs", duration: "35 min", url: "https://docs.tigergraph.com/gsql-ref/4.2/schema/", description: "Graph schema design" },
+      { title: "Data Modeling for Graphs", type: "docs", duration: "35 min", url: "https://docs.tigergraph.com/gsql-ref/4.2/ddl-and-loading/defining-a-graph-schema", description: "Graph schema design patterns" },
+      { title: "Schema Change Operations", type: "docs", duration: "25 min", url: "https://docs.tigergraph.com/gsql-ref/4.2/ddl-and-loading/modifying-a-graph-schema", description: "Evolving your schema" },
+      { title: "Multi-graph Architecture", type: "docs", duration: "30 min", url: "https://docs.tigergraph.com/gsql-ref/4.2/ddl-and-loading/", description: "Managing multiple graphs" },
+    ],
+    advanced: [
+      { title: "Schema Optimization", type: "docs", duration: "40 min", url: "https://docs.tigergraph.com/tigergraph-server/4.2/", description: "Performance-oriented schema design" },
+      { title: "Data Partitioning Strategies", type: "docs", duration: "35 min", url: "https://docs.tigergraph.com/tigergraph-server/4.2/cluster-and-ha-management/", description: "Distributed schema design" },
+      { title: "Schema Migration Best Practices", type: "docs", duration: "30 min", url: "https://docs.tigergraph.com/gsql-ref/4.2/ddl-and-loading/", description: "Safe schema changes" },
     ],
   },
   cloud: {
     beginner: [
-      { title: "TigerGraph Cloud", type: "docs", duration: "15 min", url: "https://docs.tigergraph.com/cloud", description: "Cloud deployment" },
+      { title: "TigerGraph Cloud Overview", type: "docs", duration: "15 min", url: "https://docs.tigergraph.com/cloud/start/overview", description: "Cloud deployment basics" },
+      { title: "Creating Your First Cluster", type: "tutorial", duration: "20 min", url: "https://docs.tigergraph.com/cloud/start/", description: "Launch TigerGraph Cloud" },
+      { title: "Cloud Console Guide", type: "docs", duration: "25 min", url: "https://docs.tigergraph.com/cloud/", description: "Navigate the cloud console" },
     ],
     intermediate: [
-      { title: "Production Deployment", type: "docs", duration: "30 min", url: "https://docs.tigergraph.com/tigergraph-server/4.2/", description: "Deploy and scale" },
+      { title: "Production Deployment", type: "docs", duration: "30 min", url: "https://docs.tigergraph.com/tigergraph-server/4.2/installation/", description: "Deploy TigerGraph" },
+      { title: "Backup and Restore", type: "docs", duration: "25 min", url: "https://docs.tigergraph.com/tigergraph-server/4.2/backup-and-restore/", description: "Data protection strategies" },
+      { title: "Monitoring and Alerts", type: "docs", duration: "30 min", url: "https://docs.tigergraph.com/tigergraph-server/4.2/system-management/", description: "Operational monitoring" },
+    ],
+    advanced: [
+      { title: "High Availability Setup", type: "docs", duration: "45 min", url: "https://docs.tigergraph.com/tigergraph-server/4.2/cluster-and-ha-management/ha-cluster", description: "HA configuration" },
+      { title: "Disaster Recovery", type: "docs", duration: "40 min", url: "https://docs.tigergraph.com/tigergraph-server/4.2/backup-and-restore/", description: "DR planning and setup" },
+      { title: "Multi-region Deployment", type: "docs", duration: "50 min", url: "https://docs.tigergraph.com/tigergraph-server/4.2/cluster-and-ha-management/", description: "Global deployments" },
     ],
   },
 };
@@ -134,7 +178,9 @@ const TOPIC_KEYWORDS = {
 
 // Learning path templates with topic tags for resource matching
 const learningPaths = {
-  // Beginner paths
+  // ============================================
+  // BEGINNER PATHS (experience: none)
+  // ============================================
   "none-learn-general": {
     title: "Graph Database Fundamentals",
     duration: "2 weeks",
@@ -158,8 +204,136 @@ const learningPaths = {
       },
     ],
   },
+  "none-learn-fraud": {
+    title: "Fraud Detection for Beginners",
+    duration: "3 weeks",
+    description: "Learn graph databases through the lens of fraud detection - no prior experience needed.",
+    milestones: [
+      {
+        week: 1,
+        title: "Graph Fundamentals",
+        description: "Understand how graphs reveal hidden connections",
+        topics: ['general'],
+        skillLevel: 'beginner',
+        resourceCount: 3,
+      },
+      {
+        week: 2,
+        title: "Your First Fraud Queries",
+        description: "Learn GSQL basics with fraud detection examples",
+        topics: ['gsql', 'fraud'],
+        skillLevel: 'beginner',
+        resourceCount: 3,
+      },
+      {
+        week: 3,
+        title: "Pattern Detection Basics",
+        description: "Identify suspicious patterns in connected data",
+        topics: ['fraud'],
+        skillLevel: 'intermediate',
+        resourceCount: 3,
+      },
+    ],
+  },
+  "none-learn-graphrag": {
+    title: "GraphRAG for Beginners",
+    duration: "3 weeks",
+    description: "Learn how to combine graph databases with AI - perfect for beginners interested in LLMs.",
+    milestones: [
+      {
+        week: 1,
+        title: "Graph Database Basics",
+        description: "Foundation concepts for knowledge graphs",
+        topics: ['general', 'schema'],
+        skillLevel: 'beginner',
+        resourceCount: 3,
+      },
+      {
+        week: 2,
+        title: "Introduction to Knowledge Graphs",
+        description: "How graphs power AI applications",
+        topics: ['graphrag'],
+        skillLevel: 'beginner',
+        resourceCount: 3,
+      },
+      {
+        week: 3,
+        title: "Your First GraphRAG Pipeline",
+        description: "Connect graphs to language models",
+        topics: ['graphrag'],
+        skillLevel: 'intermediate',
+        resourceCount: 3,
+      },
+    ],
+  },
+  "none-learn-recommendations": {
+    title: "Recommendation Systems Fundamentals",
+    duration: "3 weeks",
+    description: "Learn to build personalized recommendation engines with graph databases.",
+    milestones: [
+      {
+        week: 1,
+        title: "Graph Basics for Recommendations",
+        description: "Understanding user-item graphs",
+        topics: ['general', 'schema'],
+        skillLevel: 'beginner',
+        resourceCount: 3,
+      },
+      {
+        week: 2,
+        title: "Collaborative Filtering",
+        description: "Build your first recommendation query",
+        topics: ['recommendations', 'gsql'],
+        skillLevel: 'intermediate',
+        resourceCount: 3,
+      },
+      {
+        week: 3,
+        title: "Production Recommendations",
+        description: "Scale and deploy your system",
+        topics: ['recommendations', 'cloud'],
+        skillLevel: 'intermediate',
+        resourceCount: 3,
+      },
+    ],
+  },
+  "none-build-general": {
+    title: "Build Your First Graph App",
+    duration: "3 weeks",
+    description: "Go from zero to a working graph application - hands-on project-based learning.",
+    milestones: [
+      {
+        week: 1,
+        title: "Setup & Basics",
+        description: "Install TigerGraph and learn core concepts",
+        topics: ['general', 'cloud'],
+        skillLevel: 'beginner',
+        resourceCount: 3,
+      },
+      {
+        week: 2,
+        title: "Design Your Schema",
+        description: "Model your data as a graph",
+        topics: ['schema', 'gsql'],
+        skillLevel: 'beginner',
+        resourceCount: 3,
+      },
+      {
+        week: 3,
+        title: "Build & Query",
+        description: "Create queries and build your application",
+        topics: ['gsql'],
+        skillLevel: 'intermediate',
+        resourceCount: 3,
+      },
+    ],
+  },
+
+  // ============================================
+  // SOME EXPERIENCE PATHS (experience: some)
+  // ============================================
   "some-build-fraud": {
-    title: "SQL Developer → Fraud Detection Engineer",
+    title: "SQL Developer to Fraud Detection Engineer",
     duration: "4 weeks",
     description: "Transition from SQL to graph-based fraud detection with TigerGraph.",
     milestones: [
@@ -197,6 +371,103 @@ const learningPaths = {
       },
     ],
   },
+  "some-migrate-general": {
+    title: "SQL to Graph Migration Path",
+    duration: "3 weeks",
+    description: "Smoothly transition your SQL skills and data to TigerGraph.",
+    milestones: [
+      {
+        week: 1,
+        title: "SQL vs Graph Thinking",
+        description: "Understand the paradigm shift from tables to graphs",
+        topics: ['general', 'schema'],
+        skillLevel: 'beginner',
+        resourceCount: 3,
+      },
+      {
+        week: 2,
+        title: "GSQL for SQL Developers",
+        description: "Learn GSQL with SQL comparisons",
+        topics: ['gsql'],
+        skillLevel: 'intermediate',
+        resourceCount: 3,
+      },
+      {
+        week: 3,
+        title: "Data Migration Strategies",
+        description: "Move your data from SQL to TigerGraph",
+        topics: ['schema', 'cloud'],
+        skillLevel: 'intermediate',
+        resourceCount: 3,
+      },
+    ],
+  },
+  "some-build-graphrag": {
+    title: "GraphRAG Developer Path",
+    duration: "3 weeks",
+    description: "Build AI-powered applications with knowledge graphs and LLMs.",
+    milestones: [
+      {
+        week: 1,
+        title: "Knowledge Graph Design",
+        description: "Design graphs optimized for AI retrieval",
+        topics: ['graphrag', 'schema'],
+        skillLevel: 'intermediate',
+        resourceCount: 3,
+      },
+      {
+        week: 2,
+        title: "Building RAG Pipelines",
+        description: "Connect TigerGraph to LLMs",
+        topics: ['graphrag'],
+        skillLevel: 'intermediate',
+        resourceCount: 3,
+      },
+      {
+        week: 3,
+        title: "Production GraphRAG",
+        description: "Deploy and optimize your system",
+        topics: ['graphrag', 'cloud'],
+        skillLevel: 'intermediate',
+        resourceCount: 3,
+      },
+    ],
+  },
+  "some-learn-general": {
+    title: "Deepen Your Graph Skills",
+    duration: "3 weeks",
+    description: "Take your existing graph knowledge to the next level.",
+    milestones: [
+      {
+        week: 1,
+        title: "Advanced GSQL Patterns",
+        description: "Master complex query patterns",
+        topics: ['gsql'],
+        skillLevel: 'intermediate',
+        resourceCount: 3,
+      },
+      {
+        week: 2,
+        title: "Graph Algorithms",
+        description: "Learn built-in algorithms for analytics",
+        topics: ['gsql', 'general'],
+        skillLevel: 'intermediate',
+        resourceCount: 3,
+      },
+      {
+        week: 3,
+        title: "Performance Optimization",
+        description: "Make your queries faster",
+        topics: ['general', 'cloud'],
+        skillLevel: 'intermediate',
+        resourceCount: 3,
+      },
+    ],
+  },
+
+  // ============================================
+  // INTERMEDIATE PATHS (experience: intermediate)
+  // ============================================
   "intermediate-build-graphrag": {
     title: "GraphRAG Practitioner Path",
     duration: "3 weeks",
@@ -228,37 +499,247 @@ const learningPaths = {
       },
     ],
   },
-  "none-learn-recommendations": {
-    title: "Recommendation Systems Fundamentals",
+  "intermediate-build-fraud": {
+    title: "Advanced Fraud Detection Systems",
     duration: "3 weeks",
-    description: "Learn to build personalized recommendation engines with graph databases.",
+    description: "Build production-ready fraud detection with advanced graph patterns.",
     milestones: [
       {
         week: 1,
-        title: "Graph Basics for Recommendations",
-        description: "Understanding user-item graphs",
-        topics: ['general', 'schema'],
-        skillLevel: 'beginner',
+        title: "Complex Fraud Patterns",
+        description: "Detect sophisticated fraud schemes",
+        topics: ['fraud', 'gsql'],
+        skillLevel: 'intermediate',
         resourceCount: 3,
       },
       {
         week: 2,
-        title: "Collaborative Filtering",
-        description: "Build your first recommendation query",
-        topics: ['recommendations', 'gsql'],
+        title: "Real-time Detection",
+        description: "Build streaming fraud detection",
+        topics: ['fraud'],
         skillLevel: 'intermediate',
         resourceCount: 3,
       },
       {
         week: 3,
-        title: "Production Recommendations",
-        description: "Scale and deploy your system",
-        topics: ['recommendations', 'cloud'],
-        skillLevel: 'intermediate',
+        title: "Scale & Monitor",
+        description: "Production deployment and monitoring",
+        topics: ['fraud', 'cloud'],
+        skillLevel: 'advanced',
         resourceCount: 3,
       },
     ],
   },
+  "intermediate-optimize-general": {
+    title: "TigerGraph Performance Mastery",
+    duration: "3 weeks",
+    description: "Optimize your TigerGraph deployment for maximum performance.",
+    milestones: [
+      {
+        week: 1,
+        title: "Query Optimization",
+        description: "Write faster, more efficient queries",
+        topics: ['gsql'],
+        skillLevel: 'intermediate',
+        resourceCount: 3,
+      },
+      {
+        week: 2,
+        title: "Schema & Index Tuning",
+        description: "Optimize your data model",
+        topics: ['schema'],
+        skillLevel: 'intermediate',
+        resourceCount: 3,
+      },
+      {
+        week: 3,
+        title: "Infrastructure Scaling",
+        description: "Scale TigerGraph for production workloads",
+        topics: ['cloud'],
+        skillLevel: 'advanced',
+        resourceCount: 3,
+      },
+    ],
+  },
+  "intermediate-migrate-general": {
+    title: "Enterprise Graph Migration",
+    duration: "4 weeks",
+    description: "Migrate enterprise systems from SQL to TigerGraph.",
+    milestones: [
+      {
+        week: 1,
+        title: "Migration Planning",
+        description: "Assess and plan your migration strategy",
+        topics: ['general', 'schema'],
+        skillLevel: 'intermediate',
+        resourceCount: 3,
+      },
+      {
+        week: 2,
+        title: "Schema Transformation",
+        description: "Convert relational schemas to graph models",
+        topics: ['schema'],
+        skillLevel: 'intermediate',
+        resourceCount: 3,
+      },
+      {
+        week: 3,
+        title: "Data Migration",
+        description: "ETL processes for graph data",
+        topics: ['schema', 'cloud'],
+        skillLevel: 'intermediate',
+        resourceCount: 3,
+      },
+      {
+        week: 4,
+        title: "Production Cutover",
+        description: "Go live with your graph database",
+        topics: ['cloud'],
+        skillLevel: 'advanced',
+        resourceCount: 3,
+      },
+    ],
+  },
+
+  // ============================================
+  // ADVANCED PATHS (experience: advanced)
+  // ============================================
+  "advanced-optimize-general": {
+    title: "TigerGraph Architecture Expert",
+    duration: "3 weeks",
+    description: "Master advanced TigerGraph architecture, scaling, and optimization.",
+    milestones: [
+      {
+        week: 1,
+        title: "Advanced Query Patterns",
+        description: "Complex GSQL patterns and optimizations",
+        topics: ['gsql'],
+        skillLevel: 'advanced',
+        resourceCount: 3,
+      },
+      {
+        week: 2,
+        title: "Distributed Systems",
+        description: "Cluster management and partitioning",
+        topics: ['cloud'],
+        skillLevel: 'advanced',
+        resourceCount: 3,
+      },
+      {
+        week: 3,
+        title: "Enterprise Deployment",
+        description: "HA, DR, and production operations",
+        topics: ['cloud'],
+        skillLevel: 'advanced',
+        resourceCount: 3,
+      },
+    ],
+  },
+  "advanced-build-fraud": {
+    title: "Enterprise Fraud Detection Platform",
+    duration: "4 weeks",
+    description: "Build enterprise-scale fraud detection with advanced ML integration.",
+    milestones: [
+      {
+        week: 1,
+        title: "Advanced Pattern Detection",
+        description: "Complex multi-hop fraud patterns",
+        topics: ['fraud', 'gsql'],
+        skillLevel: 'advanced',
+        resourceCount: 3,
+      },
+      {
+        week: 2,
+        title: "ML Integration",
+        description: "Combine graph features with ML models",
+        topics: ['fraud', 'graphrag'],
+        skillLevel: 'advanced',
+        resourceCount: 3,
+      },
+      {
+        week: 3,
+        title: "Real-time Streaming",
+        description: "Sub-second fraud detection at scale",
+        topics: ['fraud', 'cloud'],
+        skillLevel: 'advanced',
+        resourceCount: 3,
+      },
+      {
+        week: 4,
+        title: "Enterprise Operations",
+        description: "Monitoring, alerting, and compliance",
+        topics: ['cloud'],
+        skillLevel: 'advanced',
+        resourceCount: 3,
+      },
+    ],
+  },
+  "advanced-build-graphrag": {
+    title: "Enterprise GraphRAG Architecture",
+    duration: "3 weeks",
+    description: "Design and build enterprise-scale GraphRAG systems.",
+    milestones: [
+      {
+        week: 1,
+        title: "Advanced Knowledge Graphs",
+        description: "Complex ontologies and reasoning",
+        topics: ['graphrag', 'schema'],
+        skillLevel: 'advanced',
+        resourceCount: 3,
+      },
+      {
+        week: 2,
+        title: "Multi-model RAG",
+        description: "Integrate multiple LLMs with your graph",
+        topics: ['graphrag'],
+        skillLevel: 'advanced',
+        resourceCount: 3,
+      },
+      {
+        week: 3,
+        title: "Enterprise Scale",
+        description: "Scale GraphRAG for production workloads",
+        topics: ['graphrag', 'cloud'],
+        skillLevel: 'advanced',
+        resourceCount: 3,
+      },
+    ],
+  },
+  "advanced-build-recommendations": {
+    title: "Enterprise Recommendation Engine",
+    duration: "3 weeks",
+    description: "Build highly scalable, real-time recommendation systems.",
+    milestones: [
+      {
+        week: 1,
+        title: "Advanced Algorithms",
+        description: "Sophisticated recommendation algorithms",
+        topics: ['recommendations', 'gsql'],
+        skillLevel: 'advanced',
+        resourceCount: 3,
+      },
+      {
+        week: 2,
+        title: "Real-time Personalization",
+        description: "Sub-second recommendation updates",
+        topics: ['recommendations'],
+        skillLevel: 'advanced',
+        resourceCount: 3,
+      },
+      {
+        week: 3,
+        title: "Scale & A/B Testing",
+        description: "Production deployment with experimentation",
+        topics: ['recommendations', 'cloud'],
+        skillLevel: 'advanced',
+        resourceCount: 3,
+      },
+    ],
+  },
+
+  // ============================================
+  // DEFAULT FALLBACK PATH
+  // ============================================
   "default": {
     title: "TigerGraph Explorer Path",
     duration: "3 weeks",
@@ -353,24 +834,113 @@ async function fetchResourcesForMilestone(milestone) {
 }
 
 // Generate path key from answers
+// Scoring-based path matching for better personalization
 function getPathKey(answers) {
   const { experience, goal, usecase } = answers;
   
-  // Try specific combinations
+  // Try exact match first
   const specificKey = `${experience}-${goal}-${usecase}`;
   if (learningPaths[specificKey]) return specificKey;
   
-  // Try partial matches
+  // Experience level hierarchy for fallback matching
+  const experienceLevels = ['none', 'some', 'intermediate', 'advanced'];
+  const userExpIndex = experienceLevels.indexOf(experience);
+  
+  // Goal priority - some goals are more transferable
+  const goalPriority = {
+    'learn': ['learn', 'build'],
+    'build': ['build', 'learn'],
+    'migrate': ['migrate', 'build', 'learn'],
+    'optimize': ['optimize', 'build', 'learn'],
+  };
+  
+  // Use case fallback mapping
+  const useCaseFallbacks = {
+    'fraud': ['fraud', 'general'],
+    'recommendations': ['recommendations', 'general'],
+    'graphrag': ['graphrag', 'general'],
+    'general': ['general'],
+  };
+  
+  // Score each available path
+  const pathScores = [];
+  
+  for (const pathKey of Object.keys(learningPaths)) {
+    if (pathKey === 'default') continue;
+    
+    const parts = pathKey.split('-');
+    if (parts.length < 3) continue;
+    
+    const pathExp = parts[0];
+    const pathGoal = parts[1];
+    const pathUseCase = parts.slice(2).join('-'); // Handle multi-word use cases
+    
+    let score = 0;
+    
+    // Experience matching (max 40 points)
+    // Prefer matching or slightly easier paths (one level down)
+    const pathExpIndex = experienceLevels.indexOf(pathExp);
+    if (pathExp === experience) {
+      score += 40; // Exact match
+    } else if (userExpIndex > 0 && pathExpIndex === userExpIndex - 1) {
+      score += 30; // One level easier (good for challenging users)
+    } else if (userExpIndex < 3 && pathExpIndex === userExpIndex + 1) {
+      score += 20; // One level harder (stretch goal)
+    } else {
+      score += Math.max(0, 15 - Math.abs(pathExpIndex - userExpIndex) * 5);
+    }
+    
+    // Goal matching (max 30 points)
+    const userGoalPriorities = goalPriority[goal] || [goal, 'learn'];
+    const goalIndex = userGoalPriorities.indexOf(pathGoal);
+    if (goalIndex === 0) {
+      score += 30; // Primary match
+    } else if (goalIndex === 1) {
+      score += 20; // Secondary match
+    } else if (goalIndex >= 2) {
+      score += 10; // Tertiary match
+    }
+    
+    // Use case matching (max 30 points)
+    const userUseCaseFallbacks = useCaseFallbacks[usecase] || [usecase, 'general'];
+    const useCaseIndex = userUseCaseFallbacks.indexOf(pathUseCase);
+    if (useCaseIndex === 0) {
+      score += 30; // Primary match
+    } else if (useCaseIndex === 1) {
+      score += 15; // Fallback to general
+    }
+    
+    // Only consider paths with reasonable scores
+    if (score >= 30) {
+      pathScores.push({ key: pathKey, score });
+    }
+  }
+  
+  // Sort by score descending and return best match
+  pathScores.sort((a, b) => b.score - a.score);
+  
+  if (pathScores.length > 0 && pathScores[0].score >= 50) {
+    console.log(`[Pathfinder] Matched path "${pathScores[0].key}" with score ${pathScores[0].score} for user (${experience}, ${goal}, ${usecase})`);
+    return pathScores[0].key;
+  }
+  
+  // Legacy fallback for edge cases
   const partialKeys = [
     `${experience}-${goal}-general`,
     `${experience}-learn-${usecase}`,
+    `${experience}-learn-general`,
     `some-${goal}-${usecase}`,
+    `none-learn-${usecase}`,
   ];
   
   for (const key of partialKeys) {
-    if (learningPaths[key]) return key;
+    if (learningPaths[key]) {
+      console.log(`[Pathfinder] Fallback matched path "${key}" for user (${experience}, ${goal}, ${usecase})`);
+      return key;
+    }
   }
   
+  console.log(`[Pathfinder] Using default path for user (${experience}, ${goal}, ${usecase})`);
   return 'default';
 }
 
@@ -434,12 +1004,7 @@ router.post('/save-path', authenticate, async (req, res) => {
       return res.status(400).json({ error: 'Missing required fields: title, milestones' });
     }
 
-    // Mark any existing active path as paused
-    await supabase
-      .from('user_learning_paths')
-      .update({ status: 'paused', updated_at: new Date().toISOString() })
-      .eq('user_id', req.user.id)
-      .eq('status', 'active');
+    // Note: No longer pausing existing paths - users can have multiple active paths
 
     const { data, error } = await supabase
       .from('user_learning_paths')
@@ -466,7 +1031,7 @@ router.post('/save-path', authenticate, async (req, res) => {
   }
 });
 
-// GET /api/pathfinder/my-path - Get user's active learning path
+// GET /api/pathfinder/my-path - Get user's active learning path (legacy - single path)
 router.get('/my-path', authenticate, async (req, res) => {
   try {
     if (!supabase) {
@@ -494,6 +1059,116 @@ router.get('/my-path', authenticate, async (req, res) => {
   } catch (error) {
     console.error('Get my path error:', error);
     res.status(500).json({ error: 'Failed to fetch learning path' });
+  }
+});
+
+// GET /api/pathfinder/my-paths - Get ALL user learning paths with progress stats
+router.get('/my-paths', authenticate, async (req, res) => {
+  try {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Database not available' });
+    }
+
+    // Fetch all paths for user (active, paused, completed)
+    const { data: paths, error: pathsError } = await supabase
+      .from('user_learning_paths')
+      .select('*')
+      .eq('user_id', req.user.id)
+      .order('created_at', { ascending: false });
+
+    if (pathsError) throw pathsError;
+
+    if (!paths || paths.length === 0) {
+      return res.json({ paths: [] });
+    }
+
+    // For each path, calculate progress percentage
+    const pathsWithProgress = await Promise.all(paths.map(async (path) => {
+      // Get resource progress for this path
+      const { data: resourceProgress } = await supabase
+        .from('user_path_progress')
+        .select('completed')
+        .eq('path_id', path.id)
+        .eq('user_id', req.user.id);
+
+      // Calculate total resources and completed
+      const milestones = path.milestones || [];
+      const totalResources = milestones.reduce((sum, m) => sum + (m.resources?.length || 0), 0);
+      const completedResources = resourceProgress?.filter(r => r.completed).length || 0;
+      const progressPercentage = totalResources > 0 ? Math.round((completedResources / totalResources) * 100) : 0;
+
+      return {
+        id: path.id,
+        title: path.title,
+        description: path.description,
+        duration: path.duration,
+        status: path.status,
+        experienceLevel: path.experience_level,
+        goal: path.goal,
+        useCase: path.use_case,
+        milestoneCount: milestones.length,
+        totalResources,
+        completedResources,
+        progressPercentage,
+        createdAt: path.created_at,
+        updatedAt: path.updated_at,
+      };
+    }));
+
+    res.json({ paths: pathsWithProgress });
+  } catch (error) {
+    console.error('Get my paths error:', error);
+    res.status(500).json({ error: 'Failed to fetch learning paths' });
+  }
+});
+
+// DELETE /api/pathfinder/path/:pathId - Delete a learning path
+router.delete('/path/:pathId', authenticate, async (req, res) => {
+  try {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Database not available' });
+    }
+
+    const { pathId } = req.params;
+
+    // Verify path belongs to user
+    const { data: path, error: pathError } = await supabase
+      .from('user_learning_paths')
+      .select('id')
+      .eq('id', pathId)
+      .eq('user_id', req.user.id)
+      .single();
+
+    if (pathError || !path) {
+      return res.status(404).json({ error: 'Path not found' });
+    }
+
+    // Delete related progress records first (foreign key constraint)
+    await supabase
+      .from('user_path_progress')
+      .delete()
+      .eq('path_id', pathId)
+      .eq('user_id', req.user.id);
+
+    await supabase
+      .from('user_milestone_progress')
+      .delete()
+      .eq('path_id', pathId)
+      .eq('user_id', req.user.id);
+
+    // Delete the learning path
+    const { error: deleteError } = await supabase
+      .from('user_learning_paths')
+      .delete()
+      .eq('id', pathId)
+      .eq('user_id', req.user.id);
+
+    if (deleteError) throw deleteError;
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Delete path error:', error);
+    res.status(500).json({ error: 'Failed to delete learning path' });
   }
 });
 

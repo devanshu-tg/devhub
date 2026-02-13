@@ -111,6 +111,23 @@ export interface UserLearningPath {
   updatedAt: string;
 }
 
+export interface UserLearningPathSummary {
+  id: string;
+  title: string;
+  description: string;
+  duration: string;
+  status: 'active' | 'completed' | 'paused';
+  experienceLevel: string;
+  goal: string;
+  useCase: string;
+  milestoneCount: number;
+  totalResources: number;
+  completedResources: number;
+  progressPercentage: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface PathProgress {
   path: UserLearningPath;
   resourceProgress: Array<{
@@ -286,6 +303,23 @@ export async function getMyLearningPath(): Promise<{ path: UserLearningPath | nu
   }
 }
 
+export async function getAllLearningPaths(): Promise<{ paths: UserLearningPathSummary[] }> {
+  try {
+    const headers = getAuthHeaders();
+    const res = await fetch(`${API_URL}/pathfinder/my-paths`, { headers });
+    
+    if (res.status === 401) {
+      return { paths: [] };
+    }
+    
+    if (!res.ok) throw new Error('Failed to fetch learning paths');
+    return res.json();
+  } catch (error) {
+    console.error('API Error:', error);
+    return { paths: [] };
+  }
+}
+
 export async function getPathProgress(pathId: string): Promise<PathProgress | null> {
   try {
     const headers = getAuthHeaders();
@@ -300,6 +334,22 @@ export async function getPathProgress(pathId: string): Promise<PathProgress | nu
   } catch (error) {
     console.error('API Error:', error);
     return null;
+  }
+}
+
+export async function deleteLearningPath(pathId: string): Promise<{ success: boolean }> {
+  try {
+    const headers = getAuthHeaders();
+    const res = await fetch(`${API_URL}/pathfinder/path/${pathId}`, {
+      method: 'DELETE',
+      headers,
+    });
+    
+    if (!res.ok) throw new Error('Failed to delete learning path');
+    return res.json();
+  } catch (error) {
+    console.error('API Error:', error);
+    return { success: false };
   }
 }
 
