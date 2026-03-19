@@ -5,6 +5,15 @@ const { authenticate } = require('../middleware/auth');
 const fs = require('fs');
 const path = require('path');
 
+// Import TigerGraph MCP connection getter for schema fetching
+let getMCPConnection;
+try {
+  getMCPConnection = require('./tigergraph').getMCPConnection;
+} catch (error) {
+  console.warn('⚠️ TigerGraph MCP integration not available:', error.message);
+  getMCPConnection = () => null;
+}
+
 // Initialize Gemini (will use API key from env)
 const genAI = process.env.GEMINI_API_KEY 
   ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
@@ -409,7 +418,7 @@ router.get('/health', (req, res) => {
 // =============================================================================
 router.post('/generate', authenticate, async (req, res) => {
   try {
-    const { prompt, schema, context, history = [] } = req.body;
+    const { prompt, schema, context, history = [], useMCPSchema = true } = req.body;
 
     if (!prompt || !prompt.trim()) {
       return res.status(400).json({ error: 'Prompt is required' });
@@ -421,6 +430,45 @@ router.post('/generate', authenticate, async (req, res) => {
       });
     }
 
+    // Try to fetch real schema from TigerGraph MCP if connected
+    let realSchema = null;
+    let mcpStats = null;
+    let schemaSource = 'manual';
+    
+    if (useMCPSchema && getMCPConnection) {
+      try {
+        const mcpService = getMCPConnection(req.user.id);
+        if (mcpService) {
+          console.log('🔗 GSQL AI: Fetching real schema from TigerGraph MCP...');
+          
+          // Fetch schema and statistics in parallel
+          const [schemaResult, statsResult] = await Promise.allSettled([
+            mcpService.getSchema(),
+            mcpService.getStatistics()
+          ]);
+          
+          if (schemaResult.status === 'fulfilled' && schemaResult.value) {
+            realSchema = typeof schemaResult.value === 'string' 
+              ? schemaResult.value 
+              : JSON.stringify(schemaResult.value, null, 2);
+            schemaSource = 'tigergraph_mcp';
+            console.log('✅ GSQL AI: Real schema fetched successfully');
+          }
+          
+          if (statsResult.status === 'fulfilled' && statsResult.value) {
+            mcpStats = statsResult.value;
+            console.log('✅ GSQL AI: Graph statistics fetched successfully');
+          }
+        }
+      } catch (mcpError) {
+        console.warn('⚠️ GSQL AI: Failed to fetch MCP schema:', mcpError.message);
+        // Continue with manual schema if MCP fails
+      }
+    }
+
+    // Use real schema if available, otherwise fall back to manual schema
+    const effectiveSchema = realSchema || schema;
+
     // Load GSQL knowledge base on first request (lazy loading with caching)
     if (!gsqlKnowledgeBaseChunks) {
       gsqlKnowledgeBaseChunks = loadGSQLKnowledgeBase();
@@ -431,7 +479,7 @@ router.post('/generate', authenticate, async (req, res) => {
     let relevantChunks = [];
     if (gsqlKnowledgeBaseChunks && gsqlKnowledgeBaseChunks.length > 0) {
       try {
-        relevantChunks = retrieveRelevantGSQLChunks(prompt, schema || '', gsqlKnowledgeBaseChunks, 7);
+        relevantChunks = retrieveRelevantGSQLChunks(prompt, effectiveSchema || '', gsqlKnowledgeBaseChunks, 7);
         if (relevantChunks.length > 0) {
           ragContext = formatGSQLRAGContext(relevantChunks);
           console.log(`📚 GSQL RAG: Retrieved ${relevantChunks.length} relevant chunks`);
@@ -445,8 +493,14 @@ router.post('/generate', authenticate, async (req, res) => {
     // Build the full prompt with context
     let fullPrompt = prompt;
     
-    if (schema) {
-      fullPrompt = `Schema Information:\n${schema}\n\nUser Request: ${prompt}`;
+    if (effectiveSchema) {
+      fullPrompt = `Schema Information:\n${effectiveSchema}\n\nUser Request: ${prompt}`;
+      
+      // Add graph statistics if available
+      if (mcpStats) {
+        const statsInfo = `\nGraph Statistics:\n- Total Vertices: ${JSON.stringify(mcpStats.vertexCount)}\n- Total Edges: ${JSON.stringify(mcpStats.edgeCount)}`;
+        fullPrompt = `${fullPrompt}\n${statsInfo}`;
+      }
     }
     
     if (context) {
@@ -505,6 +559,8 @@ router.post('/generate', authenticate, async (req, res) => {
       explanation: explanation || 'GSQL query generated successfully.',
       features,
       fullResponse: generatedText,
+      schemaSource,
+      graphStats: mcpStats || undefined,
       ragContext: relevantChunks.length > 0 ? {
         chunksRetrieved: relevantChunks.length,
         relevantSections: relevantChunks.map(c => c.title),

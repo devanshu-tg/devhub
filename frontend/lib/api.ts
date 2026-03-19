@@ -608,3 +608,361 @@ export async function generateGSQL(request: GSQLGenerationRequest): Promise<GSQL
     throw error;
   }
 }
+
+// ==================== TIGERGRAPH MCP API ====================
+
+export interface TigerGraphConnection {
+  id: string;
+  name: string;
+  host: string;
+  restpp_port?: number;
+  gsql_port?: number;
+  graph_name?: string;
+  is_active: boolean;
+  connected?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface TigerGraphConnectRequest {
+  host: string;
+  restpp_port?: number;
+  gsql_port?: number;
+  secret: string;
+  graph_name?: string;
+  name?: string;
+}
+
+export interface TigerGraphSchema {
+  GraphName?: string;
+  VertexTypes?: Array<{
+    Name: string;
+    Attributes?: Array<{
+      AttributeName: string;
+      AttributeType: { Name: string };
+    }>;
+    PrimaryId?: { AttributeName: string };
+  }>;
+  EdgeTypes?: Array<{
+    Name: string;
+    FromVertexTypeName: string;
+    ToVertexTypeName: string;
+    IsDirected: boolean;
+    Attributes?: Array<{
+      AttributeName: string;
+      AttributeType: { Name: string };
+    }>;
+  }>;
+}
+
+export interface TigerGraphStats {
+  vertexCount: Record<string, number> | number;
+  edgeCount: Record<string, number> | number;
+  vertexTypes?: string[];
+  edgeTypes?: string[];
+}
+
+export async function connectTigerGraph(request: TigerGraphConnectRequest): Promise<{ success: boolean; connection?: TigerGraphConnection; error?: string }> {
+  try {
+    const headers = getAuthHeaders();
+    const res = await fetch(`${API_URL}/tigergraph/connect`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(request),
+    });
+    
+    const data = await res.json();
+    
+    if (!res.ok) {
+      return { success: false, error: data.error || 'Failed to connect' };
+    }
+    
+    return { success: true, connection: data.connection };
+  } catch (error: any) {
+    console.error('TigerGraph Connect Error:', error);
+    return { success: false, error: error.message || 'Network error' };
+  }
+}
+
+export async function getTigerGraphConnections(): Promise<TigerGraphConnection[]> {
+  try {
+    const headers = getAuthHeaders();
+    const res = await fetch(`${API_URL}/tigergraph/connections`, { headers });
+    
+    if (!res.ok) {
+      return [];
+    }
+    
+    const data = await res.json();
+    return data.connections || [];
+  } catch (error) {
+    console.error('TigerGraph Connections Error:', error);
+    return [];
+  }
+}
+
+export async function getTigerGraphStatus(): Promise<{ connected: boolean; connection: TigerGraphConnection | null }> {
+  try {
+    const headers = getAuthHeaders();
+    const res = await fetch(`${API_URL}/tigergraph/status`, { headers });
+    
+    if (!res.ok) {
+      return { connected: false, connection: null };
+    }
+    
+    return res.json();
+  } catch (error) {
+    console.error('TigerGraph Status Error:', error);
+    return { connected: false, connection: null };
+  }
+}
+
+export async function activateTigerGraphConnection(connectionId: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const headers = getAuthHeaders();
+    const res = await fetch(`${API_URL}/tigergraph/connections/${connectionId}/activate`, {
+      method: 'POST',
+      headers,
+    });
+    
+    const data = await res.json();
+    
+    if (!res.ok) {
+      return { success: false, error: data.error || 'Failed to activate connection' };
+    }
+    
+    return { success: true };
+  } catch (error: any) {
+    console.error('TigerGraph Activate Error:', error);
+    return { success: false, error: error.message || 'Network error' };
+  }
+}
+
+export async function deleteTigerGraphConnection(connectionId: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const headers = getAuthHeaders();
+    const res = await fetch(`${API_URL}/tigergraph/connections/${connectionId}`, {
+      method: 'DELETE',
+      headers,
+    });
+    
+    if (!res.ok) {
+      const data = await res.json();
+      return { success: false, error: data.error || 'Failed to delete connection' };
+    }
+    
+    return { success: true };
+  } catch (error: any) {
+    console.error('TigerGraph Delete Error:', error);
+    return { success: false, error: error.message || 'Network error' };
+  }
+}
+
+export async function disconnectTigerGraph(): Promise<{ success: boolean }> {
+  try {
+    const headers = getAuthHeaders();
+    const res = await fetch(`${API_URL}/tigergraph/disconnect`, {
+      method: 'POST',
+      headers,
+    });
+    
+    return { success: res.ok };
+  } catch (error) {
+    console.error('TigerGraph Disconnect Error:', error);
+    return { success: false };
+  }
+}
+
+export async function getTigerGraphSchema(): Promise<TigerGraphSchema | null> {
+  try {
+    const headers = getAuthHeaders();
+    const res = await fetch(`${API_URL}/tigergraph/schema`, { headers });
+    
+    if (!res.ok) {
+      return null;
+    }
+    
+    const data = await res.json();
+    return data.schema;
+  } catch (error) {
+    console.error('TigerGraph Schema Error:', error);
+    return null;
+  }
+}
+
+export async function getTigerGraphStats(): Promise<TigerGraphStats | null> {
+  try {
+    const headers = getAuthHeaders();
+    const res = await fetch(`${API_URL}/tigergraph/statistics`, { headers });
+    
+    if (!res.ok) {
+      return null;
+    }
+    
+    const data = await res.json();
+    return data.statistics;
+  } catch (error) {
+    console.error('TigerGraph Stats Error:', error);
+    return null;
+  }
+}
+
+export async function runTigerGraphQuery(queryName: string, params?: Record<string, unknown>): Promise<{ result: unknown; error?: string }> {
+  try {
+    const headers = getAuthHeaders();
+    const res = await fetch(`${API_URL}/tigergraph/query/run`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ query_name: queryName, params }),
+    });
+    
+    const data = await res.json();
+    
+    if (!res.ok) {
+      return { result: null, error: data.error || 'Failed to run query' };
+    }
+    
+    return { result: data.result };
+  } catch (error: any) {
+    console.error('TigerGraph Query Error:', error);
+    return { result: null, error: error.message || 'Network error' };
+  }
+}
+
+export async function runInterpretedGSQL(query: string): Promise<{ result: unknown; error?: string }> {
+  try {
+    const headers = getAuthHeaders();
+    const res = await fetch(`${API_URL}/tigergraph/query/interpreted`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ query }),
+    });
+    
+    const data = await res.json();
+    
+    if (!res.ok) {
+      return { result: null, error: data.error || 'Failed to run query' };
+    }
+    
+    return { result: data.result };
+  } catch (error: any) {
+    console.error('TigerGraph Interpreted Query Error:', error);
+    return { result: null, error: error.message || 'Network error' };
+  }
+}
+
+export async function createTigerGraphQuery(query: string): Promise<{ result: string; error?: string }> {
+  try {
+    const headers = getAuthHeaders();
+    const res = await fetch(`${API_URL}/tigergraph/query/create`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ query }),
+    });
+    
+    const data = await res.json();
+    
+    if (!res.ok) {
+      return { result: '', error: data.error || 'Failed to create query' };
+    }
+    
+    return { result: data.result };
+  } catch (error: any) {
+    console.error('TigerGraph Create Query Error:', error);
+    return { result: '', error: error.message || 'Network error' };
+  }
+}
+
+export async function installTigerGraphQuery(queryText: string): Promise<{ success: boolean; queryName?: string; result?: unknown; error?: string }> {
+  try {
+    const headers = getAuthHeaders();
+    const res = await fetch(`${API_URL}/tigergraph/query/install`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ query_text: queryText }),
+    });
+    
+    const data = await res.json();
+    
+    if (!res.ok) {
+      return { success: false, error: data.error || 'Failed to install query' };
+    }
+    
+    return { success: true, queryName: data.queryName, result: data.result };
+  } catch (error: any) {
+    console.error('TigerGraph Install Query Error:', error);
+    return { success: false, error: error.message || 'Network error' };
+  }
+}
+
+export async function getTigerGraphQueries(): Promise<string[]> {
+  try {
+    const headers = getAuthHeaders();
+    const res = await fetch(`${API_URL}/tigergraph/queries`, { headers });
+    
+    if (!res.ok) {
+      return [];
+    }
+    
+    const data = await res.json();
+    return data.queries || [];
+  } catch (error) {
+    console.error('TigerGraph Queries Error:', error);
+    return [];
+  }
+}
+
+export async function installAndRunQuery(
+  queryText: string,
+  params?: Record<string, unknown>
+): Promise<{
+  success: boolean;
+  queryName?: string;
+  installResult?: unknown;
+  runResult?: unknown;
+  runError?: string;
+  elapsed?: number;
+  error?: string;
+}> {
+  try {
+    const headers = getAuthHeaders();
+    const res = await fetch(`${API_URL}/tigergraph/query/install-and-run`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ query_text: queryText, params }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      return { success: false, error: data.error || 'Failed to install and run query' };
+    }
+
+    return {
+      success: true,
+      queryName: data.queryName,
+      installResult: data.installResult,
+      runResult: data.runResult,
+      runError: data.runError,
+      elapsed: data.elapsed,
+    };
+  } catch (error: any) {
+    console.error('TigerGraph Install-and-Run Error:', error);
+    return { success: false, error: error.message || 'Network error' };
+  }
+}
+
+export async function getTigerGraphGraphs(): Promise<string[]> {
+  try {
+    const headers = getAuthHeaders();
+    const res = await fetch(`${API_URL}/tigergraph/graphs`, { headers });
+
+    if (!res.ok) return [];
+
+    const data = await res.json();
+    return data.graphs || [];
+  } catch (error) {
+    console.error('TigerGraph Graphs Error:', error);
+    return [];
+  }
+}

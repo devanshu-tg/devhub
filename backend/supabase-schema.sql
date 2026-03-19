@@ -278,6 +278,47 @@ CREATE POLICY "Users can delete own milestone progress" ON user_milestone_progre
 CREATE INDEX IF NOT EXISTS idx_user_milestone_progress_user_id ON user_milestone_progress(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_milestone_progress_path_id ON user_milestone_progress(path_id);
 
+-- ==================== TIGERGRAPH CONNECTIONS ====================
+
+-- User TigerGraph connections table (for GSQL AI Pro MCP integration)
+CREATE TABLE IF NOT EXISTS user_tigergraph_connections (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  name TEXT NOT NULL DEFAULT 'Default',
+  host TEXT NOT NULL,
+  restpp_port INTEGER DEFAULT 443,
+  gsql_port INTEGER DEFAULT 443,
+  secret_encrypted TEXT NOT NULL,
+  graph_name TEXT,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(user_id, name)
+);
+
+-- Enable RLS
+ALTER TABLE user_tigergraph_connections ENABLE ROW LEVEL SECURITY;
+
+-- Users can view their own connections
+CREATE POLICY "Users can view own connections" ON user_tigergraph_connections
+  FOR SELECT USING (auth.uid() = user_id);
+
+-- Users can insert their own connections
+CREATE POLICY "Users can insert own connections" ON user_tigergraph_connections
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- Users can update their own connections
+CREATE POLICY "Users can update own connections" ON user_tigergraph_connections
+  FOR UPDATE USING (auth.uid() = user_id);
+
+-- Users can delete their own connections
+CREATE POLICY "Users can delete own connections" ON user_tigergraph_connections
+  FOR DELETE USING (auth.uid() = user_id);
+
+-- Indexes for faster lookups
+CREATE INDEX IF NOT EXISTS idx_user_tigergraph_connections_user_id ON user_tigergraph_connections(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_tigergraph_connections_active ON user_tigergraph_connections(user_id, is_active) WHERE is_active = true;
+
 -- ==================== SEED DATA ====================
 
 -- Seed data for resources

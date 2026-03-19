@@ -1,124 +1,352 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { 
-  Sparkles, 
-  Code, 
-  Copy, 
-  Check, 
-  Loader2, 
+import { useState, useRef, useEffect, useMemo } from "react";
+import {
+  Code,
+  Copy,
+  Check,
+  Loader2,
   AlertCircle,
-  Lightbulb,
-  FileText,
   Zap,
   Send,
-  User,
   RotateCcw,
-  Settings,
-  BookOpen,
   ChevronDown,
-  ChevronUp
+  Database,
+  Play,
+  Unlink,
+  Download,
+  Terminal,
+  X,
+  ArrowRight,
+  Layers,
 } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import AuthModal from "@/components/ui/AuthModal";
-import { generateGSQL, type GSQLGenerationRequest, type RAGContext } from "@/lib/api";
+import TigerGraphConnectModal from "@/components/TigerGraphConnectModal";
+import {
+  generateGSQL,
+  type GSQLGenerationRequest,
+  type RAGContext,
+  getTigerGraphStatus,
+  getTigerGraphSchema,
+  getTigerGraphStats,
+  disconnectTigerGraph,
+  runInterpretedGSQL,
+  installTigerGraphQuery,
+  installAndRunQuery,
+  type TigerGraphConnection,
+  type TigerGraphSchema,
+} from "@/lib/api";
 import toast from "react-hot-toast";
 import clsx from "clsx";
 
+interface QueryResult {
+  status: "idle" | "loading" | "success" | "error";
+  action?: "interpreted" | "install" | "install-run";
+  data?: unknown;
+  error?: string;
+  queryName?: string;
+  elapsed?: number;
+}
+
 interface GSQLMessage {
   id: string;
-  role: 'user' | 'assistant';
+  role: "user" | "assistant";
   content: string;
   code?: string;
   explanation?: string;
   features?: string[];
   ragContext?: RAGContext;
+  schemaSource?: "manual" | "tigergraph_mcp";
 }
 
-const welcomeMessage = `Hey there! 👋 I'm your **GSQL AI Assistant**!
+function parseQueryParams(
+  code: string
+): Array<{ name: string; type: string }> {
+  const match = code.match(
+    /CREATE\s+(?:OR\s+REPLACE\s+)?(?:DISTRIBUTED\s+)?QUERY\s+\w+\s*\(([^)]*)\)/i
+  );
+  if (!match || !match[1].trim()) return [];
 
-I can help you generate production-ready GSQL queries using comprehensive knowledge from TigerGraph's official documentation.
+  return match[1].split(",").map((param) => {
+    const trimmed = param.trim();
+    const parts = trimmed.split(/\s+/);
+    const name = parts[parts.length - 1];
+    const type = parts.slice(0, parts.length - 1).join(" ") || "STRING";
+    return { name, type };
+  });
+}
 
-**What I can do:**
-• Generate GSQL queries from natural language
-• Use your schema information for accurate code
-• Provide explanations and best practices
-• Leverage RAG (Retrieval-Augmented Generation) for up-to-date syntax
-
-**Get started by:**
-1. Optionally set your graph schema (click the schema button)
-2. Describe what query you want to build
-3. I'll generate the code with explanations!
-
-**Try asking:**
-• "Create a query to find all friends of friends"
-• "Generate a PageRank algorithm"
-• "Find the shortest path between two vertices"`;
-
-  const examplePrompts = [
-    {
-      title: "Find Friends of Friends",
-      prompt: "Create a query to find all friends of friends for a given person, excluding direct friends",
-      icon: Zap
-    },
-    {
-      title: "PageRank Algorithm",
-      prompt: "Generate a PageRank query with configurable damping factor and convergence threshold",
-      icon: Lightbulb
-    },
-    {
-      title: "Shortest Path",
-      prompt: "Find the shortest path between two vertices in a graph",
-      icon: FileText
-    },
-    {
-      title: "Recommendation Query",
-      prompt: "Create a collaborative filtering query to recommend items based on user preferences",
-      icon: Sparkles
-    }
-  ];
+function renderMarkdown(text: string): string {
+  return text
+    .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*(.*?)\*/g, "<em>$1</em>")
+    .replace(/`([^`]+)`/g, '<code class="px-1 py-0.5 rounded bg-themed-tertiary text-tiger-orange text-xs font-mono">$1</code>');
+}
 
 export default function GSQLAIPage() {
   const { user } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [messages, setMessages] = useState<GSQLMessage[]>([
-    {
-      id: 'welcome',
-      role: 'assistant',
-      content: welcomeMessage
-    }
-  ]);
+  const [showConnectModal, setShowConnectModal] = useState(false);
+  const [messages, setMessages] = useState<GSQLMessage[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [schema, setSchema] = useState("");
   const [context, setContext] = useState("");
-  const [showSchemaEditor, setShowSchemaEditor] = useState(false);
+  const [showSchema, setShowSchema] = useState(false);
   const [copiedCodeId, setCopiedCodeId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Load schema from localStorage on mount
-  useEffect(() => {
-    const savedSchema = localStorage.getItem('gsql-ai-schema');
-    if (savedSchema) {
-      setSchema(savedSchema);
+  const [tgConnection, setTgConnection] =
+    useState<TigerGraphConnection | null>(null);
+  const [tgSchema, setTgSchema] = useState<TigerGraphSchema | null>(null);
+  const [tgStats, setTgStats] = useState<{
+    vertexCount: number;
+    edgeCount: number;
+  } | null>(null);
+
+  const [queryResults, setQueryResults] = useState<
+    Record<string, QueryResult>
+  >({});
+  const [queryParams, setQueryParams] = useState<
+    Record<string, Record<string, string>>
+  >({});
+
+  const suggestions = useMemo(() => {
+    if (!tgSchema) {
+      return [
+        "Find all vertices of a given type",
+        "Count edges grouped by type",
+        "Get the top 10 most connected nodes",
+      ];
     }
+    const vTypes = tgSchema.VertexTypes?.map((v: any) => v.Name) || [];
+    const eTypes = tgSchema.EdgeTypes?.map((e: any) => e.Name) || [];
+    const chips: string[] = [];
+    if (vTypes.length >= 2 && eTypes.length >= 1) {
+      chips.push(`Find ${vTypes[0]}s connected by ${eTypes[0]}`);
+      chips.push(`Top 5 ${vTypes[0]}s with most ${eTypes[eTypes.length - 1]} edges`);
+      chips.push(`List all ${vTypes[1]}s with attributes`);
+      if (eTypes.length >= 2) {
+        chips.push(`${vTypes[0]}s who ${eTypes[0].toLowerCase()} someone that ${eTypes[1].toLowerCase()} a ${vTypes[1]}`);
+      }
+    } else {
+      vTypes.forEach((v: string) => chips.push(`List all ${v} vertices`));
+      eTypes.forEach((e: string) => chips.push(`Count ${e} edges`));
+    }
+    return chips.slice(0, 4);
+  }, [tgSchema]);
+
+  useEffect(() => {
+    if (user) checkTGConnection();
+  }, [user]);
+
+  const checkTGConnection = async () => {
+    try {
+      const status = await getTigerGraphStatus();
+      if (status.connected && status.connection) {
+        setTgConnection(status.connection);
+        const [schemaData, statsData] = await Promise.all([
+          getTigerGraphSchema(),
+          getTigerGraphStats(),
+        ]);
+        if (schemaData) setTgSchema(schemaData);
+        if (statsData) {
+          setTgStats({
+            vertexCount:
+              typeof statsData.vertexCount === "number"
+                ? statsData.vertexCount
+                : 0,
+            edgeCount:
+              typeof statsData.edgeCount === "number"
+                ? statsData.edgeCount
+                : 0,
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Failed to check TG connection:", error);
+    }
+  };
+
+  const handleTGConnect = async (connection: TigerGraphConnection) => {
+    setTgConnection(connection);
+    try {
+      const [schemaData, statsData] = await Promise.all([
+        getTigerGraphSchema(),
+        getTigerGraphStats(),
+      ]);
+      if (schemaData) setTgSchema(schemaData);
+      if (statsData) {
+        setTgStats({
+          vertexCount:
+            typeof statsData.vertexCount === "number"
+              ? statsData.vertexCount
+              : 0,
+          edgeCount:
+            typeof statsData.edgeCount === "number" ? statsData.edgeCount : 0,
+        });
+        toast.success("Schema and stats loaded from TigerGraph!");
+      } else {
+        toast.success("Connected to TigerGraph!");
+      }
+    } catch (error) {
+      console.error("Failed to fetch schema:", error);
+      toast.success("Connected (schema fetch pending)");
+    }
+  };
+
+  const handleTGDisconnect = async () => {
+    await disconnectTigerGraph();
+    setTgConnection(null);
+    setTgSchema(null);
+    setTgStats(null);
+    toast.success("Disconnected from TigerGraph");
+  };
+
+  // ==================== Query Actions ====================
+
+  const setResult = (messageId: string, result: QueryResult) => {
+    setQueryResults((prev) => ({ ...prev, [messageId]: result }));
+  };
+
+  const handleRunInterpreted = async (code: string, messageId: string) => {
+    if (!tgConnection) {
+      toast.error("Connect to TigerGraph first");
+      return;
+    }
+    setResult(messageId, { status: "loading", action: "interpreted" });
+    try {
+      const res = await runInterpretedGSQL(code);
+      if (res.error) {
+        setResult(messageId, {
+          status: "error",
+          action: "interpreted",
+          error: res.error,
+        });
+        toast.error("Interpreted query failed");
+      } else {
+        setResult(messageId, {
+          status: "success",
+          action: "interpreted",
+          data: res.result,
+        });
+        toast.success("Query ran successfully!");
+      }
+    } catch (error: any) {
+      setResult(messageId, {
+        status: "error",
+        action: "interpreted",
+        error: error.message,
+      });
+      toast.error(error.message || "Failed to run query");
+    }
+  };
+
+  const handleInstall = async (code: string, messageId: string) => {
+    if (!tgConnection) {
+      toast.error("Connect to TigerGraph first");
+      return;
+    }
+    setResult(messageId, { status: "loading", action: "install" });
+    try {
+      const res = await installTigerGraphQuery(code);
+      if (!res.success) {
+        setResult(messageId, {
+          status: "error",
+          action: "install",
+          error: res.error,
+        });
+        toast.error(`Install failed: ${res.error}`);
+      } else {
+        setResult(messageId, {
+          status: "success",
+          action: "install",
+          queryName: res.queryName,
+          data: res.result,
+        });
+        toast.success(`Query "${res.queryName}" installed!`);
+      }
+    } catch (error: any) {
+      setResult(messageId, {
+        status: "error",
+        action: "install",
+        error: error.message,
+      });
+      toast.error(error.message || "Failed to install query");
+    }
+  };
+
+  const handleInstallAndRun = async (code: string, messageId: string) => {
+    if (!tgConnection) {
+      toast.error("Connect to TigerGraph first");
+      return;
+    }
+    setResult(messageId, { status: "loading", action: "install-run" });
+    try {
+      const paramDefs = parseQueryParams(code);
+      const rawParams = queryParams[messageId] || {};
+      const params: Record<string, unknown> = {};
+      for (const p of paramDefs) {
+        if (rawParams[p.name] !== undefined && rawParams[p.name] !== "") {
+          params[p.name] = rawParams[p.name];
+        }
+      }
+
+      const res = await installAndRunQuery(code, params);
+      if (!res.success) {
+        setResult(messageId, {
+          status: "error",
+          action: "install-run",
+          error: res.error,
+        });
+        toast.error(`Install+Run failed: ${res.error}`);
+      } else if (res.runError) {
+        setResult(messageId, {
+          status: "error",
+          action: "install-run",
+          error: res.runError,
+          queryName: res.queryName,
+          data: res.installResult,
+        });
+        toast.error(`Installed but run failed: ${res.runError}`);
+      } else {
+        setResult(messageId, {
+          status: "success",
+          action: "install-run",
+          data: res.runResult,
+          queryName: res.queryName,
+          elapsed: res.elapsed,
+        });
+        toast.success(
+          `Query "${res.queryName}" installed and ran in ${res.elapsed}ms!`
+        );
+      }
+    } catch (error: any) {
+      setResult(messageId, {
+        status: "error",
+        action: "install-run",
+        error: error.message,
+      });
+      toast.error(error.message || "Failed to install and run");
+    }
+  };
+
+  // ==================== Message Handling ====================
+
+  useEffect(() => {
+    const savedSchema = localStorage.getItem("gsql-ai-schema");
+    if (savedSchema) setSchema(savedSchema);
   }, []);
 
-  // Save schema to localStorage when it changes
   useEffect(() => {
-    if (schema) {
-      localStorage.setItem('gsql-ai-schema', schema);
-    }
+    if (schema) localStorage.setItem("gsql-ai-schema", schema);
   }, [schema]);
 
-  // Auto-scroll to bottom when messages change
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  }, [messages]);
 
   const handleSend = async (messageText?: string) => {
     const textToSend = messageText || input.trim();
@@ -131,7 +359,7 @@ export default function GSQLAIPage() {
 
     const userMessage: GSQLMessage = {
       id: Date.now().toString(),
-      role: 'user',
+      role: "user",
       content: textToSend,
     };
 
@@ -140,38 +368,45 @@ export default function GSQLAIPage() {
     setIsLoading(true);
 
     try {
-      // Build history from previous messages (excluding welcome)
-      const history = messages
-        .filter(m => m.id !== 'welcome')
-        .map(m => ({ role: m.role, content: m.content }));
+      const history = messages.map((m) => ({
+        role: m.role,
+        content: m.content,
+      }));
+
+      const schemaForPrompt = tgSchema
+        ? JSON.stringify(tgSchema, null, 2)
+        : schema.trim() || undefined;
 
       const request: GSQLGenerationRequest = {
         prompt: textToSend,
-        ...(schema.trim() && { schema: schema.trim() }),
+        ...(schemaForPrompt && { schema: schemaForPrompt }),
         ...(context.trim() && { context: context.trim() }),
-        history
+        history,
       };
 
       const response = await generateGSQL(request);
-      
+
       const assistantMessage: GSQLMessage = {
         id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: response.explanation || 'GSQL query generated successfully.',
+        role: "assistant",
+        content: response.explanation || "Here's your GSQL query.",
         code: response.code,
         explanation: response.explanation,
         features: response.features,
-        ragContext: response.ragContext
+        ragContext: response.ragContext,
+        schemaSource: tgSchema ? "tigergraph_mcp" : "manual",
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
-      toast.success("GSQL generated successfully!");
     } catch (error: any) {
       console.error("Generation error:", error);
       const errorMessage: GSQLMessage = {
         id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: error.message || error.details || "I'm having trouble generating the query right now. Please try again.",
+        role: "assistant",
+        content:
+          error.message ||
+          error.details ||
+          "Something went wrong generating the query. Please try again.",
       };
       setMessages((prev) => [...prev, errorMessage]);
       toast.error(error.message || "Failed to generate GSQL");
@@ -181,350 +416,533 @@ export default function GSQLAIPage() {
   };
 
   const handleReset = () => {
-    setMessages([{
-      id: 'welcome',
-      role: 'assistant',
-      content: welcomeMessage
-    }]);
-    toast.success("Conversation reset");
+    setMessages([]);
+    setQueryResults({});
+    setQueryParams({});
   };
 
   const handleCopy = async (code: string, messageId: string) => {
     try {
       await navigator.clipboard.writeText(code);
       setCopiedCodeId(messageId);
-      toast.success("Code copied to clipboard!");
       setTimeout(() => setCopiedCodeId(null), 2000);
     } catch (error) {
       toast.error("Failed to copy code");
     }
   };
 
-  const handleExampleClick = (examplePrompt: string) => {
-    setInput(examplePrompt);
+  const autoResize = (el: HTMLTextAreaElement) => {
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, 160) + "px";
+  };
+
+  // ==================== Render Helpers ====================
+
+  const renderParamInputs = (code: string, messageId: string) => {
+    const params = parseQueryParams(code);
+    if (params.length === 0) return null;
+    const values = queryParams[messageId] || {};
+
+    return (
+      <div className="mt-3 p-3 rounded-xl bg-themed-tertiary/50 border border-themed">
+        <p className="text-xs font-medium text-themed-secondary mb-2 flex items-center gap-1.5">
+          <Terminal className="w-3 h-3" />
+          Parameters
+        </p>
+        <div className="grid grid-cols-2 gap-2">
+          {params.map((p) => (
+            <div key={p.name}>
+              <label className="text-[11px] text-themed-muted block mb-1">
+                {p.name}
+                <span className="opacity-50 ml-1">{p.type}</span>
+              </label>
+              <input
+                type="text"
+                value={values[p.name] || ""}
+                onChange={(e) =>
+                  setQueryParams((prev) => ({
+                    ...prev,
+                    [messageId]: {
+                      ...prev[messageId],
+                      [p.name]: e.target.value,
+                    },
+                  }))
+                }
+                placeholder={p.type}
+                className="w-full px-2.5 py-1.5 rounded-lg text-xs bg-themed-primary border border-themed text-themed placeholder:text-themed-muted/40 focus:border-tiger-orange focus:outline-none transition-colors"
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const renderResultPanel = (messageId: string) => {
+    const qr = queryResults[messageId];
+    if (!qr || qr.status === "idle") return null;
+
+    const actionLabels: Record<string, string> = {
+      interpreted: "Interpreted Query",
+      install: "Install Query",
+      "install-run": "Install & Run",
+    };
+
+    return (
+      <div className="mt-3 rounded-xl border border-themed overflow-hidden">
+        <div
+          className={clsx(
+            "flex items-center justify-between px-3 py-2 text-xs font-medium",
+            qr.status === "loading" &&
+              "bg-blue-500/10 text-blue-400",
+            qr.status === "success" &&
+              "bg-green-500/10 text-green-400",
+            qr.status === "error" &&
+              "bg-red-500/10 text-red-400"
+          )}
+        >
+          <div className="flex items-center gap-2">
+            {qr.status === "loading" && (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            )}
+            {qr.status === "success" && <Check className="w-3 h-3" />}
+            {qr.status === "error" && <AlertCircle className="w-3 h-3" />}
+            <span>
+              {actionLabels[qr.action || ""] || "Result"}
+              {qr.queryName && ` — ${qr.queryName}`}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            {qr.elapsed && (
+              <span className="text-themed-muted">{qr.elapsed}ms</span>
+            )}
+            <button
+              onClick={() =>
+                setQueryResults((prev) => ({
+                  ...prev,
+                  [messageId]: { status: "idle" },
+                }))
+              }
+              className="p-0.5 rounded hover:bg-themed-tertiary transition-colors"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+        </div>
+        <div className="px-3 py-2 max-h-64 overflow-y-auto bg-themed-tertiary/30">
+          {qr.status === "loading" && (
+            <p className="text-xs text-themed-muted">Running...</p>
+          )}
+          {qr.status === "error" && (
+            <pre className="text-xs text-red-400 whitespace-pre-wrap font-mono">
+              {qr.error}
+            </pre>
+          )}
+          {qr.status === "success" && qr.data != null && (
+            <pre className="text-xs text-themed whitespace-pre-wrap font-mono">
+              {typeof qr.data === "string"
+                ? qr.data
+                : JSON.stringify(qr.data, null, 2)}
+            </pre>
+          )}
+          {qr.status === "success" && qr.data == null && (
+            <p className="text-xs text-green-400">
+              Completed successfully.
+            </p>
+          )}
+        </div>
+      </div>
+    );
   };
 
   const renderCodeBlock = (code: string, messageId: string) => {
+    const qr = queryResults[messageId];
+    const isRunning = qr?.status === "loading";
+
     return (
-      <div className="relative mt-3">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs text-themed-muted font-mono">GSQL</span>
-          <button
-            onClick={() => handleCopy(code, messageId)}
-            className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-themed-tertiary hover:bg-themed border border-themed text-themed-secondary transition-all"
-          >
-            {copiedCodeId === messageId ? (
-              <>
-                <Check className="w-3 h-3 text-green-500" />
-                Copied!
-              </>
-            ) : (
-              <>
-                <Copy className="w-3 h-3" />
-                Copy
-              </>
-            )}
-          </button>
+      <div className="mt-3">
+        <div className="rounded-xl border border-themed overflow-hidden">
+          <div className="flex items-center justify-between px-3 py-1.5 bg-themed-tertiary/50 border-b border-themed">
+            <span className="text-[11px] text-themed-muted font-mono tracking-wide uppercase">
+              gsql
+            </span>
+            <div className="flex items-center gap-1.5">
+              {tgConnection && (
+                <>
+                  <button
+                    onClick={() => handleRunInterpreted(code, messageId)}
+                    disabled={isRunning}
+                    className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 transition-all disabled:opacity-40"
+                  >
+                    {isRunning && qr?.action === "interpreted" ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <Play className="w-3 h-3" />
+                    )}
+                    Run
+                  </button>
+                  <button
+                    onClick={() => handleInstall(code, messageId)}
+                    disabled={isRunning}
+                    className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 transition-all disabled:opacity-40"
+                  >
+                    {isRunning && qr?.action === "install" ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <Download className="w-3 h-3" />
+                    )}
+                    Install
+                  </button>
+                  <button
+                    onClick={() => handleInstallAndRun(code, messageId)}
+                    disabled={isRunning}
+                    className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-green-500/10 hover:bg-green-500/20 text-green-400 transition-all disabled:opacity-40"
+                  >
+                    {isRunning && qr?.action === "install-run" ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <Zap className="w-3 h-3" />
+                    )}
+                    Install & Run
+                  </button>
+                </>
+              )}
+              <button
+                onClick={() => handleCopy(code, messageId)}
+                className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium text-themed-muted hover:text-themed transition-colors"
+              >
+                {copiedCodeId === messageId ? (
+                  <Check className="w-3 h-3 text-green-500" />
+                ) : (
+                  <Copy className="w-3 h-3" />
+                )}
+              </button>
+            </div>
+          </div>
+          <pre className="p-4 overflow-x-auto bg-themed-primary">
+            <code className="text-sm text-themed font-mono whitespace-pre leading-relaxed">
+              {code}
+            </code>
+          </pre>
         </div>
-        <pre className="p-4 rounded-lg bg-themed-tertiary border border-themed overflow-x-auto">
-          <code className="text-sm text-themed font-mono whitespace-pre">{code}</code>
-        </pre>
+
+        {tgConnection && renderParamInputs(code, messageId)}
+        {renderResultPanel(messageId)}
       </div>
     );
   };
 
-  const renderRAGContext = (ragContext: RAGContext) => {
-    return (
-      <div className="mt-3 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
-        <div className="flex items-center gap-2 mb-2">
-          <BookOpen className="w-4 h-4 text-blue-500" />
-          <span className="text-xs font-semibold text-themed">
-            Using RAG: {ragContext.chunksRetrieved} knowledge sections
-          </span>
-          <span className="text-xs text-themed-muted">
-            ({ragContext.confidence}% relevance)
-          </span>
-        </div>
-        <details className="text-xs">
-          <summary className="cursor-pointer text-themed-secondary hover:text-themed">
-            View relevant sections ({ragContext.relevantSections.length})
-          </summary>
-          <ul className="mt-2 space-y-1 pl-4">
-            {ragContext.relevantSections.map((section, idx) => (
-              <li key={idx} className="text-themed-muted">
-                • {section.replace('GSQL_', '').replace(/_/g, ' ')}
-              </li>
-            ))}
-          </ul>
-        </details>
-      </div>
-    );
-  };
+  const renderMessage = (message: GSQLMessage, index: number) => {
+    const isUser = message.role === "user";
 
-  const renderMessage = (message: GSQLMessage) => {
-    const isUser = message.role === 'user';
-    
     return (
       <div
         key={message.id}
         className={clsx(
-          "flex gap-4 mb-6",
-          isUser ? "flex-row-reverse" : ""
+          "animate-fade-in",
+          isUser ? "flex justify-end" : ""
         )}
       >
-        {/* Avatar */}
-        <div
-          className={clsx(
-            "w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0",
-            isUser
-              ? "bg-themed-tertiary"
-              : "bg-gradient-to-br from-tiger-orange to-amber-500"
-          )}
-        >
-          {isUser ? (
-            <User className="w-5 h-5 text-themed-secondary" />
-          ) : (
-            <Code className="w-5 h-5 text-white" />
-          )}
-        </div>
-
-        {/* Message Content */}
-        <div
-          className={clsx(
-            "max-w-[85%] space-y-2",
-            isUser ? "text-right" : ""
-          )}
-        >
-          {/* Text Content */}
-          <div
-            className={clsx(
-              "inline-block p-4 rounded-2xl text-sm leading-relaxed",
-              isUser
-                ? "bg-tiger-orange text-white rounded-tr-none"
-                : "bg-themed-secondary text-themed rounded-tl-none border border-themed"
-            )}
-          >
-            <div 
-              className="whitespace-pre-wrap prose prose-sm dark:prose-invert max-w-none"
-              dangerouslySetInnerHTML={{ 
-                __html: message.content
-                  .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                  .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                  .replace(/•/g, '<span class="text-tiger-orange">•</span>')
-                  .replace(/👋/g, '<span class="inline-block animate-wave">👋</span>')
-              }}
-            />
-          </div>
-
-          {/* Code Block */}
-          {message.code && renderCodeBlock(message.code, message.id)}
-
-          {/* Features */}
-          {message.features && message.features.length > 0 && (
-            <div className="mt-3 p-3 rounded-lg bg-green-500/10 border border-green-500/20">
-              <p className="text-xs font-semibold text-themed mb-2">Key Features:</p>
-              <ul className="space-y-1">
-                {message.features.map((feature, idx) => (
-                  <li key={idx} className="text-xs text-themed-secondary flex items-start gap-2">
-                    <span className="text-green-500 mt-1">•</span>
-                    <span>{feature}</span>
-                  </li>
-                ))}
-              </ul>
+        {isUser ? (
+          <div className="max-w-[80%]">
+            <div className="inline-block px-4 py-2.5 rounded-2xl rounded-tr-sm bg-tiger-orange text-white text-sm leading-relaxed">
+              {message.content}
             </div>
-          )}
+          </div>
+        ) : (
+          <div className="max-w-[90%]">
+            <div className="border-l-2 border-tiger-orange/30 pl-4">
+              <div
+                className="text-sm text-themed leading-relaxed whitespace-pre-wrap"
+                dangerouslySetInnerHTML={{
+                  __html: renderMarkdown(message.content),
+                }}
+              />
 
-          {/* RAG Context */}
-          {message.ragContext && renderRAGContext(message.ragContext)}
-        </div>
+              {message.code && renderCodeBlock(message.code, message.id)}
+            </div>
+          </div>
+        )}
       </div>
     );
   };
 
+  const hasMessages = messages.length > 0;
+
+  // ==================== Render ====================
+
   return (
-    <div className="min-h-screen bg-themed-primary">
-      <div className="max-w-6xl mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="mb-6 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-tiger-orange to-tiger-orange-light flex items-center justify-center">
-              <Code className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold text-themed">GSQL AI Pro</h1>
-              <p className="text-themed-secondary mt-1">
-                Generate production-ready GSQL queries with AI + RAG
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowSchemaEditor(!showSchemaEditor)}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-themed-secondary hover:bg-themed-tertiary border border-themed text-themed-secondary transition-all"
-            >
-              <Settings className="w-4 h-4" />
-              Schema
-            </button>
-            <button
-              onClick={handleReset}
-              className="p-2 rounded-lg bg-themed-secondary hover:bg-themed-tertiary border border-themed text-themed-secondary transition-all"
-              title="Reset conversation"
-            >
-              <RotateCcw className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
+    <div
+      className="flex flex-col -m-6 h-[calc(100vh-4rem)]"
+      style={{
+        background: `
+          radial-gradient(ellipse 90% 60% at 85% 0%, rgba(247,148,29,0.15) 0%, transparent 50%),
+          radial-gradient(ellipse 55% 50% at 0% 40%, rgba(247,148,29,0.10) 0%, transparent 50%),
+          radial-gradient(ellipse 70% 50% at 20% 100%, rgba(255,171,74,0.13) 0%, transparent 50%),
+          radial-gradient(ellipse 45% 40% at 95% 60%, rgba(247,148,29,0.08) 0%, transparent 50%),
+          var(--surface-primary)
+        `,
+      }}
+    >
 
-        <div className="grid lg:grid-cols-4 gap-6">
-          {/* Chat Area */}
-          <div className="lg:col-span-3">
-            <div className="bg-themed-secondary rounded-xl border border-themed p-6 h-[calc(100vh-16rem)] flex flex-col">
-              {/* Messages */}
-              <div className="flex-1 overflow-y-auto mb-4 space-y-4">
-                {messages.map(renderMessage)}
-                {isLoading && (
-                  <div className="flex gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-tiger-orange to-amber-500 flex items-center justify-center flex-shrink-0">
-                      <Code className="w-5 h-5 text-white" />
-                    </div>
-                    <div className="bg-themed-tertiary text-themed rounded-2xl rounded-tl-none border border-themed p-4">
-                      <div className="flex items-center gap-2">
-                        <Loader2 className="w-4 h-4 animate-spin text-tiger-orange" />
-                        <span className="text-sm">Generating GSQL query...</span>
-                      </div>
-                    </div>
+      {/* Header */}
+      <div className="flex-shrink-0 border-b border-themed/50 px-6 py-3">
+        <div className="max-w-4xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-tiger-orange to-tiger-orange-light flex items-center justify-center">
+              <Code className="w-4 h-4 text-white" />
             </div>
+            <h1 className="text-lg font-semibold text-themed">GSQL AI</h1>
+            {tgConnection && (
+              <div className="hidden sm:flex items-center gap-2 ml-3 pl-3 border-l border-themed">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+                </span>
+                <span className="text-xs text-themed-secondary">
+                  {tgConnection.graph_name || "TigerGraph"}
+                </span>
+                {tgStats && (tgStats.vertexCount > 0 || tgStats.edgeCount > 0) && (
+                  <span className="text-xs text-themed-secondary font-medium tabular-nums">
+                    {tgStats.vertexCount.toLocaleString()} nodes &middot; {tgStats.edgeCount.toLocaleString()} edges
+                  </span>
                 )}
-                <div ref={messagesEndRef} />
-            </div>
-
-              {/* Input Area */}
-              <div className="flex gap-2">
-              <textarea
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSend();
-                    }
-                  }}
-                  placeholder="Describe the GSQL query you want to build..."
-                  className="flex-1 px-4 py-3 rounded-lg bg-themed-tertiary border border-themed text-themed placeholder:text-themed-muted focus:border-tiger-orange focus:ring-2 focus:ring-tiger-orange/20 transition-all resize-none"
-                disabled={isLoading}
-                  rows={2}
-              />
-            <button
-                  onClick={() => handleSend()}
-                  disabled={isLoading || !input.trim()}
-                  className="px-6 py-3 rounded-lg bg-tiger-orange text-white font-semibold hover:bg-tiger-orange-dark transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-            >
-              {isLoading ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <>
-                      <Send className="w-5 h-5" />
-                      Send
-                </>
-              )}
-            </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Schema Editor */}
-            {showSchemaEditor && (
-              <div className="bg-themed-secondary rounded-xl border border-themed p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-themed flex items-center gap-2">
-                    <Settings className="w-5 h-5 text-tiger-orange" />
-                    Schema
-                  </h3>
-                  <button
-                    onClick={() => setShowSchemaEditor(false)}
-                    className="text-themed-muted hover:text-themed"
-                  >
-                    <ChevronUp className="w-4 h-4" />
-                  </button>
-                </div>
-                <textarea
-                  value={schema}
-                  onChange={(e) => setSchema(e.target.value)}
-                  placeholder="E.g., Vertex types: Person, Product. Edge types: PURCHASED, SIMILAR_TO..."
-                  className="w-full h-32 px-4 py-3 rounded-lg bg-themed-tertiary border border-themed text-themed placeholder:text-themed-muted focus:border-tiger-orange focus:ring-2 focus:ring-tiger-orange/20 transition-all resize-none font-mono text-sm"
-                />
-                <p className="text-xs text-themed-muted mt-2">
-                  Schema persists across conversations
-                </p>
+                <button
+                  onClick={handleTGDisconnect}
+                  className="text-themed-muted hover:text-red-400 transition-colors ml-1"
+                  title="Disconnect"
+                >
+                  <Unlink className="w-3 h-3" />
+                </button>
               </div>
             )}
-
-            {/* Example Prompts */}
-            <div className="bg-themed-secondary rounded-xl border border-themed p-6">
-              <h3 className="text-lg font-semibold text-themed mb-4 flex items-center gap-2">
-                <Lightbulb className="w-5 h-5 text-tiger-orange" />
-                Example Prompts
-              </h3>
-              <div className="space-y-3">
-                {examplePrompts.map((example, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => handleExampleClick(example.prompt)}
-                    disabled={isLoading}
-                    className="w-full text-left p-4 rounded-lg bg-themed-tertiary hover:bg-themed border border-themed hover:border-tiger-orange/50 transition-all group"
-                  >
-                    <div className="flex items-start gap-3">
-                      <example.icon className="w-5 h-5 text-tiger-orange mt-0.5 flex-shrink-0" />
-                      <div>
-                        <p className="text-sm font-semibold text-themed group-hover:text-tiger-orange transition-colors">
-                          {example.title}
-                        </p>
-                        <p className="text-xs text-themed-muted mt-1 line-clamp-2">
-                          {example.prompt}
-                        </p>
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Tips */}
-            <div className="bg-gradient-to-br from-tiger-orange/10 to-transparent rounded-xl border border-tiger-orange/20 p-6">
-              <h3 className="text-sm font-semibold text-themed mb-3 flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-tiger-orange" />
-                Tips for Best Results
-              </h3>
-              <ul className="space-y-2 text-xs text-themed-secondary">
-                <li className="flex items-start gap-2">
-                  <span className="text-tiger-orange mt-1">•</span>
-                  <span>Be specific about what you want to query</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-tiger-orange mt-1">•</span>
-                  <span>Set your schema for better accuracy</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-tiger-orange mt-1">•</span>
-                  <span>Ask follow-up questions to refine</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-tiger-orange mt-1">•</span>
-                  <span>RAG provides up-to-date GSQL syntax</span>
-                </li>
-              </ul>
-            </div>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setShowConnectModal(true)}
+              className={clsx(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all",
+                tgConnection
+                  ? "border-green-500/30 text-green-400 hover:bg-green-500/10"
+                  : "border-themed text-themed-secondary hover:bg-themed-tertiary"
+              )}
+            >
+              <Database className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">
+                {tgConnection ? "Connected" : "Connect"}
+              </span>
+            </button>
+            <button
+              onClick={() => setShowSchema(!showSchema)}
+              className={clsx(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all",
+                showSchema
+                  ? "border-tiger-orange/30 text-tiger-orange bg-tiger-orange/5"
+                  : "border-themed text-themed-secondary hover:bg-themed-tertiary"
+              )}
+            >
+              <Layers className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Schema</span>
+            </button>
+            {hasMessages && (
+              <button
+                onClick={handleReset}
+                className="p-1.5 rounded-lg border border-themed text-themed-muted hover:text-themed-secondary hover:bg-themed-tertiary transition-all"
+                title="New conversation"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Auth Modal */}
+      {/* Schema Drawer */}
+      {showSchema && (
+        <div className="flex-shrink-0 border-b border-themed/50 animate-fade-in">
+          <div className="max-w-4xl mx-auto px-6 py-4">
+            {tgSchema ? (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-green-400 flex items-center gap-1.5 font-medium">
+                    <Check className="w-3 h-3" />
+                    Loaded from TigerGraph
+                  </p>
+                  <span className="text-[11px] text-themed-muted">
+                    {tgSchema.GraphName}
+                  </span>
+                </div>
+                <div className="grid sm:grid-cols-2 gap-2">
+                  {tgSchema.VertexTypes?.map((v: any) => (
+                    <div
+                      key={v.Name}
+                      className="flex items-start gap-2 p-2.5 rounded-lg bg-themed-secondary border border-themed"
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full bg-blue-400 mt-1.5 flex-shrink-0" />
+                      <div className="min-w-0">
+                        <span className="text-xs font-medium text-themed">
+                          {v.Name}
+                        </span>
+                        <span className="text-[11px] text-themed-muted ml-1.5">
+                          PK: {v.PrimaryId?.AttributeName || "id"}
+                        </span>
+                        {v.Attributes?.length > 0 && (
+                          <p className="text-[11px] text-themed-muted mt-0.5 truncate">
+                            {v.Attributes.map(
+                              (a: any) => a.AttributeName
+                            ).join(", ")}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  {tgSchema.EdgeTypes?.map((e: any) => (
+                    <div
+                      key={e.Name}
+                      className="flex items-start gap-2 p-2.5 rounded-lg bg-themed-secondary border border-themed"
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 flex-shrink-0" />
+                      <div className="min-w-0">
+                        <span className="text-xs font-medium text-themed">
+                          {e.Name}
+                        </span>
+                        <span className="text-[11px] text-themed-muted ml-1.5">
+                          {e.FromVertexTypeName} → {e.ToVertexTypeName}
+                        </span>
+                        {e.Attributes?.length > 0 && (
+                          <p className="text-[11px] text-themed-muted mt-0.5 truncate">
+                            {e.Attributes.map(
+                              (a: any) => a.AttributeName
+                            ).join(", ")}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-xs text-themed-muted font-medium">
+                  Manual schema (optional)
+                </p>
+                <textarea
+                  value={schema}
+                  onChange={(e) => setSchema(e.target.value)}
+                  placeholder="Vertex types: Person, Product&#10;Edge types: PURCHASED, SIMILAR_TO"
+                  className="w-full h-24 px-3 py-2 rounded-lg bg-themed-secondary border border-themed text-themed text-xs font-mono placeholder:text-themed-muted/40 focus:border-tiger-orange focus:outline-none focus:ring-1 focus:ring-tiger-orange/20 transition-all resize-none"
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Chat Area */}
+      <div className="flex-1 overflow-y-auto min-h-0">
+        <div className="max-w-4xl mx-auto px-6 py-6">
+          {hasMessages ? (
+            <div className="space-y-6">
+              {messages.map((m, i) => renderMessage(m, i))}
+
+              {isLoading && (
+                <div className="animate-fade-in">
+                  <div className="border-l-2 border-tiger-orange/30 pl-4">
+                    <div className="flex items-center gap-2 text-sm text-themed-muted">
+                      <Loader2 className="w-4 h-4 animate-spin text-tiger-orange" />
+                      Generating query...
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div ref={messagesEndRef} />
+            </div>
+          ) : (
+            /* Empty State */
+            <div className="flex flex-col items-center justify-center h-full">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-tiger-orange/10 to-tiger-orange/5 border border-tiger-orange/10 flex items-center justify-center mb-6">
+                <Code className="w-7 h-7 text-tiger-orange/60" />
+              </div>
+              <h2 className="text-xl font-semibold text-themed mb-1">
+                What do you want to query?
+              </h2>
+              <p className="text-sm text-themed-muted mb-8 text-center max-w-md">
+                {tgConnection
+                  ? `Connected to ${tgConnection.graph_name || "TigerGraph"} — describe what you need in plain English.`
+                  : "Connect your TigerGraph instance or describe a query manually."}
+              </p>
+              <div className="flex flex-wrap justify-center gap-2">
+                {suggestions.map((s, i) => (
+                  <button
+                    key={i}
+                    onClick={() => handleSend(s)}
+                    disabled={isLoading}
+                    className="group flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs text-themed-secondary bg-themed-secondary border border-themed hover:border-tiger-orange/40 hover:text-tiger-orange transition-all disabled:opacity-50"
+                  >
+                    {s}
+                    <ArrowRight className="w-3 h-3 opacity-0 -ml-1 group-hover:opacity-100 group-hover:ml-0 transition-all" />
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Input Bar */}
+      <div className="flex-shrink-0 border-t border-themed/50">
+        <div className="max-w-4xl mx-auto px-6 py-3">
+          <div className="flex items-end gap-2">
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={(e) => {
+                setInput(e.target.value);
+                autoResize(e.target);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSend();
+                }
+              }}
+              placeholder={
+                tgConnection
+                  ? "Ask about your graph..."
+                  : "Describe the GSQL query you need..."
+              }
+              className="flex-1 px-4 py-2.5 rounded-xl bg-themed-secondary border border-themed text-sm text-themed placeholder:text-themed-muted/50 focus:border-tiger-orange focus:ring-1 focus:ring-tiger-orange/20 transition-all resize-none leading-relaxed"
+              disabled={isLoading}
+              rows={1}
+              style={{ maxHeight: 160 }}
+            />
+            <button
+              onClick={() => handleSend()}
+              disabled={isLoading || !input.trim()}
+              className="flex-shrink-0 w-10 h-10 rounded-xl bg-tiger-orange text-white flex items-center justify-center hover:bg-tiger-orange-dark transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              {isLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Send className="w-4 h-4" />
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+
       <AuthModal
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}
         defaultTab="login"
+      />
+
+      <TigerGraphConnectModal
+        isOpen={showConnectModal}
+        onClose={() => setShowConnectModal(false)}
+        onConnect={handleTGConnect}
+        currentConnection={tgConnection}
       />
     </div>
   );
