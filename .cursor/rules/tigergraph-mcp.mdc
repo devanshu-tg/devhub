@@ -1,0 +1,98 @@
+---
+description: TigerGraph MCP server usage patterns, proven workflows, and auth for this project
+alwaysApply: true
+---
+
+# TigerGraph MCP — Proven Workflows
+
+## Authentication
+
+Generate JWT tokens via POST to `/gsql/v1/tokens`:
+
+```
+POST {TG_HOST}/gsql/v1/tokens
+Body: { "secret": "<SECRET>", "lifetime": 7776000 }
+Response: { "token": "<JWT_TOKEN>" }
+```
+
+- Always generate a **global** token (no graph in request) so it works across all graphs.
+- Token lifetime 7776000 = 90 days.
+- The MCP config lives at `.cursor/mcp.json`. Set `TG_JWT_TOKEN` there.
+- pyTigerGraph's internal `getToken()` flow is unreliable on TG Cloud 4.x — always use a pre-generated JWT token.
+
+## MCP Tools That Work Reliably
+
+### Graph & Schema (use `tigergraph__gsql`)
+```
+CREATE GRAPH MyGraph()
+CREATE SCHEMA_CHANGE JOB job_name FOR GRAPH MyGraph { ... }
+RUN SCHEMA_CHANGE JOB job_name
+DROP JOB ALL
+DROP QUERY ALL
+DROP GRAPH MyGraph
+```
+- Always `USE GRAPH` before graph-specific operations.
+- Use column indices (`$0`, `$1`) not header names in loading jobs — header name references require `DEFINE HEADER` which is fragile.
+- `concat()` function is NOT available in loading jobs on TG Cloud — preprocess data or use column indices instead.
+
+### Loading Data
+
+**For files on local disk — use `tigergraph__run_loading_job_with_file`:**
+- Pass absolute file path — loads entire file in ONE call (up to 128MB).
+- This is the best tool for bulk loading. It uploads the file to TG Cloud.
+- **CRITICAL: Always set `"timeout": 300000` (300s) or higher.** The default timeout is only 16000ms (16s), which is far too low for any real dataset. Even ~70K rows with multiple LOAD statements will exceed 16s. Failing to set this causes a misleading `REST-3000` timeout error.
+- Do NOT try `RUN LOADING JOB ... USING f="local_path"` via `tigergraph__gsql` — the TG server cannot access local files. Only `run_loading_job_with_file` handles the upload from local disk to TG Cloud.
+- Example: `{ "job_name": "load_job", "file_tag": "f", "file_path": "C:\\path\\to\\file.csv", "separator": "|", "timeout": 300000 }`
+
+**For small inline data — use `tigergraph__run_loading_job_with_data`:**
+- Pass CSV data as a string in the `data` parameter.
+- Good for < 100 rows. Not practical for large datasets.
+
+**Do NOT use `tigergraph__create_loading_job` MCP tool** — it has parameter issues. Use `tigergraph__gsql` with `CREATE LOADING JOB` instead.
+
+### Queries (use `tigergraph__gsql` to create/install)
+```
+CREATE OR REPLACE QUERY my_query(...) FOR GRAPH MyGraph { ... }
+INSTALL QUERY my_query
+```
+- Reverse edge traversal `<(EDGE)-` is NOT supported in GSQL v4. Instead traverse forward from the source vertex type.
+- Run installed queries via `tigergraph__run_installed_query`.
+- `tigergraph__install_query` MCP tool requires full query text — easier to use `gsql` with `INSTALL QUERY`.
+
+### Vertex/Edge CRUD
+- `tigergraph__add_node` / `tigergraph__get_node` / `tigergraph__has_node` / `tigergraph__delete_node` — all work.
+- Edge tools (`add_edge`, `delete_edges`) have SDK bugs with `is_directed` boolean handling — use loading jobs for bulk edge creation instead.
+
+### Tools with Known Issues
+- `tigergraph__create_graph` — parameter issues. Use `gsql` with `CREATE GRAPH` instead.
+- `tigergraph__get_node_degree` / `tigergraph__get_neighbors` — generate undirected patterns on directed-only graphs. SDK bug.
+- `tigergraph__get_query_metadata` — 404 on TG Cloud 4.x (endpoint not available).
+- `tigergraph__create_data_source` / `tigergraph__drop_data_source` — SDK parameter issues.
+
+## Loading Job Pattern (Proven)
+
+```gsql
+USE GRAPH MyGraph
+CREATE LOADING JOB load_my_data FOR GRAPH MyGraph {
+  DEFINE FILENAME f;
+  LOAD f TO VERTEX MyVertex VALUES ($0, $1, $2) USING SEPARATOR="|", HEADER="true", EOL="\n";
+  LOAD f TO EDGE MyEdge VALUES ($0, $3) USING SEPARATOR="|", HEADER="true", EOL="\n";
+}
+```
+
+Then load via: `tigergraph__run_loading_job_with_file` with the local CSV path and `"timeout": 300000`.
+
+## End-to-End Flow
+
+1. `gsql` → `CREATE GRAPH`
+2. `gsql` → `CREATE SCHEMA_CHANGE JOB` + `RUN SCHEMA_CHANGE JOB`
+3. `gsql` → `CREATE LOADING JOB`
+4. `run_loading_job_with_file` → load entire CSV in one call (**always set `timeout: 300000`**)
+5. `gsql` → `CREATE OR REPLACE QUERY` + `INSTALL QUERY`
+6. `run_installed_query` → execute and get results
+
+## Current Instance
+
+- Host: check `.cursor/mcp.json` for current `TG_HOST`
+- Auth: JWT token in `TG_JWT_TOKEN`
+- To generate new token: `POST {HOST}/gsql/v1/tokens` with secret + lifetime

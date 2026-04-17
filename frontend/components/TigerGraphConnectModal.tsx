@@ -15,8 +15,10 @@ import {
 interface TigerGraphConnectModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onConnect: (connection: TigerGraphConnection) => void;
+  onConnect: (connection: TigerGraphConnection | null) => void;
   currentConnection?: TigerGraphConnection | null;
+  isAuthenticated?: boolean;
+  onRequireAuth?: () => void;
 }
 
 export default function TigerGraphConnectModal({
@@ -24,6 +26,8 @@ export default function TigerGraphConnectModal({
   onClose,
   onConnect,
   currentConnection,
+  isAuthenticated = false,
+  onRequireAuth,
 }: TigerGraphConnectModalProps) {
   const [activeTab, setActiveTab] = useState<'new' | 'saved'>('new');
   const [connections, setConnections] = useState<TigerGraphConnection[]>([]);
@@ -37,11 +41,62 @@ export default function TigerGraphConnectModal({
   const [formData, setFormData] = useState({
     name: 'Default',
     host: '',
-    restpp_port: '443',
-    gsql_port: '443',
+    restpp_port: '',
+    gsql_port: '',
     secret: '',
     graph_name: '',
   });
+
+  const isLikelyCloudHost = (host: string) => {
+    const value = host.toLowerCase();
+    return value.includes('tgcloud.io') || value.includes('savanna') || value.includes('.i.tgcloud.io');
+  };
+
+  const toPortNumber = (value: string) => {
+    if (!value?.trim()) return null;
+    const parsed = Number.parseInt(value.trim(), 10);
+    if (Number.isNaN(parsed) || parsed <= 0 || parsed > 65535) return null;
+    return parsed;
+  };
+
+  const normalizeConnectionInput = () => {
+    const hostInput = formData.host.trim();
+    if (!hostInput) {
+      throw new Error('Host is required');
+    }
+
+    const withProtocol = /^https?:\/\//i.test(hostInput)
+      ? hostInput
+      : `http://${hostInput}`;
+    const parsed = new URL(withProtocol);
+    const isCloud = isLikelyCloudHost(parsed.hostname);
+    const embeddedPort = toPortNumber(parsed.port);
+    const normalizedHost = `${parsed.protocol || (isCloud ? 'https:' : 'http:')}//${parsed.hostname}`;
+
+    let restppPort = toPortNumber(formData.restpp_port);
+    let gsqlPort = toPortNumber(formData.gsql_port);
+
+    if (restppPort == null && gsqlPort == null && embeddedPort != null) {
+      if (embeddedPort === 9000 || embeddedPort === 14240) {
+        restppPort = 9000;
+        gsqlPort = 14240;
+      } else {
+        restppPort = embeddedPort;
+        gsqlPort = embeddedPort;
+      }
+    }
+
+    if (restppPort == null) restppPort = isCloud ? 443 : 9000;
+    if (gsqlPort == null) gsqlPort = isCloud ? 443 : 14240;
+
+    return {
+      host: normalizedHost,
+      restpp_port: restppPort,
+      gsql_port: gsqlPort,
+      secret: formData.secret.trim(),
+      graph_name: formData.graph_name || undefined,
+    };
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -64,6 +119,11 @@ export default function TigerGraphConnectModal({
   };
 
   const fetchAvailableGraphs = async () => {
+    if (!isAuthenticated) {
+      setError('Please sign in to use TigerGraph connection tools.');
+      onRequireAuth?.();
+      return;
+    }
     if (!formData.host || !formData.secret) {
       setError('Enter host and secret first, then fetch graphs');
       return;
@@ -73,12 +133,13 @@ export default function TigerGraphConnectModal({
     setError(null);
 
     try {
+      const normalized = normalizeConnectionInput();
       const result = await connectTigerGraph({
-        host: formData.host,
-        restpp_port: parseInt(formData.restpp_port) || 443,
-        gsql_port: parseInt(formData.gsql_port) || 443,
-        secret: formData.secret,
-        graph_name: formData.graph_name || undefined,
+        host: normalized.host,
+        restpp_port: normalized.restpp_port,
+        gsql_port: normalized.gsql_port,
+        secret: normalized.secret,
+        graph_name: normalized.graph_name,
         name: '__temp_graph_fetch__',
       });
 
@@ -103,6 +164,11 @@ export default function TigerGraphConnectModal({
 
   const handleConnect = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isAuthenticated) {
+      setError('Please sign in before connecting to TigerGraph.');
+      onRequireAuth?.();
+      return;
+    }
     setLoading(true);
     setError(null);
     setSuccess(null);
@@ -113,12 +179,21 @@ export default function TigerGraphConnectModal({
       return;
     }
 
+    let normalized;
+    try {
+      normalized = normalizeConnectionInput();
+    } catch (err: any) {
+      setLoading(false);
+      setError(err.message || 'Invalid connection details');
+      return;
+    }
+
     const result = await connectTigerGraph({
-      host: formData.host,
-      restpp_port: parseInt(formData.restpp_port) || 443,
-      gsql_port: parseInt(formData.gsql_port) || 443,
-      secret: formData.secret,
-      graph_name: formData.graph_name || undefined,
+      host: normalized.host,
+      restpp_port: normalized.restpp_port,
+      gsql_port: normalized.gsql_port,
+      secret: normalized.secret,
+      graph_name: normalized.graph_name,
       name: formData.name,
     });
 
@@ -143,6 +218,11 @@ export default function TigerGraphConnectModal({
   };
 
   const handleActivateConnection = async (connectionId: string) => {
+    if (!isAuthenticated) {
+      setError('Please sign in before activating a saved TigerGraph connection.');
+      onRequireAuth?.();
+      return;
+    }
     setLoading(true);
     setError(null);
 
@@ -182,7 +262,7 @@ export default function TigerGraphConnectModal({
   const handleDisconnect = async () => {
     setLoading(true);
     await disconnectTigerGraph();
-    onConnect(null as unknown as TigerGraphConnection);
+    onConnect(null);
     await loadConnections();
     setLoading(false);
   };
@@ -314,7 +394,7 @@ export default function TigerGraphConnectModal({
                     name="restpp_port"
                     value={formData.restpp_port}
                     onChange={handleInputChange}
-                    placeholder="443"
+                    placeholder="9000 (on-prem) / 443 (cloud)"
                     className={inputClasses}
                   />
                 </div>
@@ -327,7 +407,7 @@ export default function TigerGraphConnectModal({
                     name="gsql_port"
                     value={formData.gsql_port}
                     onChange={handleInputChange}
-                    placeholder="443"
+                    placeholder="14240 (on-prem) / 443 (cloud)"
                     className={inputClasses}
                   />
                 </div>
@@ -402,7 +482,7 @@ export default function TigerGraphConnectModal({
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || !isAuthenticated}
                 className="w-full rounded-lg bg-tiger-orange px-4 py-3 font-medium text-white hover:bg-tiger-orange-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
               >
                 {loading ? (
@@ -411,10 +491,17 @@ export default function TigerGraphConnectModal({
                     Connecting...
                   </>
                 ) : (
+                  !isAuthenticated ? (
+                    <>
+                      <Database className="h-4 w-4" />
+                      Sign in to connect
+                    </>
+                  ) : (
                   <>
                     <Database className="h-4 w-4" />
                     Connect
                   </>
+                  )
                 )}
               </button>
             </form>

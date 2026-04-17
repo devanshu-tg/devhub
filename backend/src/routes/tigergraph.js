@@ -12,6 +12,65 @@ const supabase = createClient(
 
 const mcpConnections = new Map();
 
+function isLikelyCloudHost(host = '') {
+  const hostValue = String(host || '').toLowerCase();
+  return hostValue.includes('tgcloud.io') || hostValue.includes('savanna') || hostValue.includes('.i.tgcloud.io');
+}
+
+function toPortNumber(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const parsed = Number.parseInt(String(value), 10);
+  if (Number.isNaN(parsed) || parsed <= 0 || parsed > 65535) return null;
+  return parsed;
+}
+
+function normalizeConnectionConfig(host, restppPort, gsqlPort) {
+  const rawHost = String(host || '').trim();
+  if (!rawHost) {
+    throw new Error('Host is required');
+  }
+
+  const withProtocol = /^https?:\/\//i.test(rawHost) ? rawHost : `http://${rawHost}`;
+  const parsed = new URL(withProtocol);
+  const isCloud = isLikelyCloudHost(parsed.hostname);
+  const embeddedPort = toPortNumber(parsed.port);
+
+  const protocol = parsed.protocol || (isCloud ? 'https:' : 'http:');
+  const normalizedHost = `${protocol}//${parsed.hostname}`;
+
+  let explicitRestpp = toPortNumber(restppPort);
+  let explicitGsql = toPortNumber(gsqlPort);
+
+  // Legacy non-cloud rows often store 443/443 from old defaults.
+  if (!isCloud && explicitRestpp === 443 && explicitGsql === 443) {
+    explicitRestpp = null;
+    explicitGsql = null;
+  }
+
+  let resolvedRestpp = explicitRestpp;
+  let resolvedGsql = explicitGsql;
+
+  if (resolvedRestpp == null && resolvedGsql == null && embeddedPort != null) {
+    if (embeddedPort === 9000 || embeddedPort === 14240) {
+      resolvedRestpp = 9000;
+      resolvedGsql = 14240;
+    } else {
+      resolvedRestpp = embeddedPort;
+      resolvedGsql = embeddedPort;
+    }
+  }
+
+  if (resolvedRestpp == null) resolvedRestpp = isCloud ? 443 : 9000;
+  if (resolvedGsql == null) resolvedGsql = isCloud ? 443 : 14240;
+
+  return {
+    host: normalizedHost,
+    restpp_port: resolvedRestpp,
+    gsql_port: resolvedGsql,
+    tgcloud: isCloud,
+  };
+}
+
 function getMCPConnection(userId) {
   return mcpConnections.get(userId);
 }
@@ -38,6 +97,7 @@ router.post('/connect', authenticate, async (req, res) => {
   try {
     const { host, restpp_port, gsql_port, secret, graph_name, name, skipMCPValidation } = req.body;
     const userId = req.user.id;
+    const normalized = normalizeConnectionConfig(host, restpp_port, gsql_port);
 
     if (!host || !secret) {
       return res.status(400).json({ error: 'Host and secret are required' });
@@ -52,22 +112,27 @@ router.post('/connect', authenticate, async (req, res) => {
 
     if (!skipMCPValidation) {
       const mcpService = new TigerGraphMCPService({
-        host,
-        restpp_port: restpp_port || 443,
-        gsql_port: gsql_port || 443,
+        host: normalized.host,
+        restpp_port: normalized.restpp_port,
+        gsql_port: normalized.gsql_port,
+        tgcloud: normalized.tgcloud,
         secret,
         graph_name,
       });
 
       try {
         await mcpService.connect();
+        console.log(`✅ MCP connected for user ${userId} (JWT auto-fetched, host: ${normalized.host})`);
         await setMCPConnection(userId, mcpService);
         mcpConnected = true;
       } catch (error) {
-        console.warn('MCP connection failed (non-fatal):', error.message);
+        console.warn('MCP connection failed:', error.message);
         mcpError = error.message;
       }
     }
+
+    const activeMcp = getMCPConnection(userId);
+    const resolvedGraphName = (activeMcp && activeMcp.getGraphName()) || graph_name;
 
     const encryptedSecret = encrypt(secret);
 
@@ -83,11 +148,11 @@ router.post('/connect', authenticate, async (req, res) => {
       const { data, error } = await supabase
         .from('user_tigergraph_connections')
         .update({
-          host,
-          restpp_port: restpp_port || 443,
-          gsql_port: gsql_port || 443,
+          host: normalized.host,
+          restpp_port: normalized.restpp_port,
+          gsql_port: normalized.gsql_port,
           secret_encrypted: encryptedSecret,
-          graph_name,
+          graph_name: resolvedGraphName,
           is_active: true,
           updated_at: new Date().toISOString(),
         })
@@ -103,11 +168,11 @@ router.post('/connect', authenticate, async (req, res) => {
         .insert({
           user_id: userId,
           name: name || 'Default',
-          host,
-          restpp_port: restpp_port || 443,
-          gsql_port: gsql_port || 443,
+          host: normalized.host,
+          restpp_port: normalized.restpp_port,
+          gsql_port: normalized.gsql_port,
           secret_encrypted: encryptedSecret,
-          graph_name,
+          graph_name: resolvedGraphName,
           is_active: true,
         })
         .select()
@@ -177,17 +242,20 @@ router.post('/connections/:id/activate', authenticate, async (req, res) => {
     }
 
     const secret = decrypt(conn.secret_encrypted);
+    const normalized = normalizeConnectionConfig(conn.host, conn.restpp_port, conn.gsql_port);
 
     const mcpService = new TigerGraphMCPService({
-      host: conn.host,
-      restpp_port: conn.restpp_port,
-      gsql_port: conn.gsql_port,
+      host: normalized.host,
+      restpp_port: normalized.restpp_port,
+      gsql_port: normalized.gsql_port,
+      tgcloud: normalized.tgcloud,
       secret,
       graph_name: conn.graph_name,
     });
 
     try {
       await mcpService.connect();
+      console.log(`✅ MCP re-activated for user ${userId} (JWT auto-fetched, host: ${normalized.host})`);
     } catch (error) {
       return res.status(400).json({
         error: 'Failed to reconnect to TigerGraph',
@@ -202,7 +270,13 @@ router.post('/connections/:id/activate', authenticate, async (req, res) => {
 
     const { error: updateError } = await supabase
       .from('user_tigergraph_connections')
-      .update({ is_active: true, updated_at: new Date().toISOString() })
+      .update({
+        is_active: true,
+        host: normalized.host,
+        restpp_port: normalized.restpp_port,
+        gsql_port: normalized.gsql_port,
+        updated_at: new Date().toISOString(),
+      })
       .eq('id', id);
 
     if (updateError) throw updateError;
@@ -279,7 +353,11 @@ router.get('/schema', authenticate, async (req, res) => {
     res.json({ schema });
   } catch (error) {
     console.error('Get schema error:', error);
-    res.status(500).json({ error: 'Failed to get schema', details: error.message });
+    res.status(500).json({
+      error: 'Failed to get schema',
+      details: error.message,
+      code: 'TG_SCHEMA_FETCH_FAILED',
+    });
   }
 });
 
@@ -292,7 +370,11 @@ router.get('/statistics', authenticate, async (req, res) => {
     res.json({ statistics: stats });
   } catch (error) {
     console.error('Get statistics error:', error);
-    res.status(500).json({ error: 'Failed to get statistics', details: error.message });
+    res.status(500).json({
+      error: 'Failed to get statistics',
+      details: error.message,
+      code: 'TG_STATS_FETCH_FAILED',
+    });
   }
 });
 
@@ -410,7 +492,15 @@ router.post('/query/install', authenticate, async (req, res) => {
     res.json({ success: true, queryName: result.queryName, result: result.result });
   } catch (error) {
     console.error('Install query error:', error);
-    res.status(500).json({ error: 'Failed to install query', details: error.message });
+    const details = error.message || 'Unknown error';
+    const isValidationError = details.includes('query_text is empty')
+      || details.includes('must include a CREATE QUERY')
+      || details.includes('missing a body block')
+      || details.includes('unbalanced body block');
+    res.status(isValidationError ? 400 : 500).json({
+      error: isValidationError ? 'Invalid query input' : 'Failed to install query',
+      details,
+    });
   }
 });
 
@@ -446,7 +536,15 @@ router.post('/query/install-and-run', authenticate, async (req, res) => {
     });
   } catch (error) {
     console.error('Install-and-run error:', error);
-    res.status(500).json({ error: 'Failed to install and run query', details: error.message });
+    const details = error.message || 'Unknown error';
+    const isValidationError = details.includes('query_text is empty')
+      || details.includes('must include a CREATE QUERY')
+      || details.includes('missing a body block')
+      || details.includes('unbalanced body block');
+    res.status(isValidationError ? 400 : 500).json({
+      error: isValidationError ? 'Invalid query input' : 'Failed to install and run query',
+      details,
+    });
   }
 });
 

@@ -414,6 +414,174 @@ router.get('/health', (req, res) => {
 });
 
 // =============================================================================
+// Intent Classification & MCP Tool Dispatch
+// =============================================================================
+
+const INTENT_CLASSIFY_PROMPT = `You are an intent classifier for a TigerGraph graph database assistant.
+Given the user message, schema, and conversation history, classify the intent as EXACTLY one of:
+- "data_question" -- user wants to KNOW something (counts, data lookups, list of graphs, list of queries, connection status) OR wants to EXECUTE an admin action (drop queries, drop graph, run a GSQL command, delete something, install something). This is the most common intent — use it whenever the user asks about their data OR wants you to do something on the database.
+- "query_generation" -- user explicitly wants you to WRITE/GENERATE GSQL code for them to review. They say things like "write a query", "generate GSQL", "create a query that...", "give me a query for...". ONLY use this when the user clearly wants code output.
+- "schema_question" -- user asks about vertex/edge types, attributes, structure, or graph metadata
+- "conversation" -- general chat, greetings, thanks, clarifications, or follow-up discussion
+
+CRITICAL: Default to "data_question" for any request that can be answered by calling a tool. Only use "query_generation" when the user explicitly asks for GSQL code to be written.
+
+If the intent is "data_question", also extract which MCP tool to call and the arguments.
+Available tools:
+- get_vertex_count: args {vertex_type?} -- count vertices (omit vertex_type for total)
+- get_edge_count: args {edge_type?} -- count edges
+- get_nodes: args {vertex_type, limit?} -- list vertices of a type (vertex_type is REQUIRED, use a type from the schema)
+- get_node_edges: args {vertex_type, vertex_id, edge_type?} -- get edges of a specific node (vertex_type AND vertex_id are REQUIRED)
+- get_statistics: args {} -- get overall graph stats, also good for "is it connected" or "test connection" requests
+- show_details: args {} -- show full graph details (queries, jobs, loading jobs, etc.)
+- list_graphs: args {} -- list all graphs on the server
+- gsql: args {command} -- run ANY GSQL command. Use this for admin operations like DROP QUERY ALL, DROP QUERY <name>, SHOW QUERY <name>, LS, USE GRAPH <name>, CREATE GRAPH, etc. When user says "delete all queries", use gsql with command "DROP QUERY ALL". When user says "show queries", use show_details.
+
+IMPORTANT RULES:
+- For "get_nodes", you MUST provide vertex_type as a non-null string from the schema. If the user says "find all vertices" without specifying a type, use "get_statistics" or "show_details" instead.
+- For "get_node_edges", you MUST provide both vertex_type and vertex_id. If either is unknown, use "get_statistics" instead.
+- If the user asks "is it connected", "test connection", "check connection", use get_statistics.
+- If the user asks to delete/drop/remove queries, graphs, jobs, or data, use the gsql tool with the appropriate GSQL command.
+- If the user asks "how many graphs", "list graphs", "what graphs", use list_graphs.
+- If the user asks "what queries", "show queries", "list queries", use show_details.
+- All tool arguments must be non-null strings. Never use null for required arguments.
+
+Respond with ONLY valid JSON, no markdown, no explanation:
+{"intent": "...", "tool": "...", "args": {...}}
+
+For non-data intents, omit tool and args:
+{"intent": "query_generation"}`;
+
+const MCP_TOOL_MAP = {
+  get_vertex_count: (mcp, args) => mcp.getVertexCount(args.vertex_type || undefined),
+  get_edge_count: (mcp, args) => mcp.getEdgeCount(args.edge_type || undefined),
+  get_nodes: (mcp, args) => {
+    if (!args.vertex_type) {
+      throw new Error('vertex_type is required. Ask me about a specific vertex type (check the schema first).');
+    }
+    return mcp.getNodes(args.vertex_type, args.limit || 20);
+  },
+  get_node_edges: (mcp, args) => {
+    if (!args.vertex_type || !args.vertex_id) {
+      throw new Error('vertex_type and vertex_id are required. Specify which vertex you want edges for.');
+    }
+    const toolArgs = { vertex_type: args.vertex_type, vertex_id: args.vertex_id };
+    if (args.edge_type) toolArgs.edge_type = args.edge_type;
+    if (args.graph_name) toolArgs.graph_name = args.graph_name;
+    return mcp.callTool('tigergraph__get_node_edges', toolArgs).then(r => mcp.parseResponse(r));
+  },
+  get_statistics: (mcp) => mcp.getStatistics(),
+  show_details: (mcp) => mcp.listMetadata(),
+  list_graphs: (mcp) => mcp.listGraphs(),
+  gsql: (mcp, args) => {
+    if (!args.command) {
+      throw new Error('GSQL command is required.');
+    }
+    let command = args.command.trim();
+    const graphName = mcp.getGraphName();
+    if (graphName && !command.toUpperCase().startsWith('USE GRAPH')) {
+      command = `USE GRAPH ${graphName}\n${command}`;
+    }
+    return mcp.gsql(command);
+  },
+};
+
+async function classifyIntent(genAI, prompt, schemaInfo, history) {
+  try {
+    const flashModel = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    const context = schemaInfo ? `\nGraph schema: ${schemaInfo}` : '';
+    const recentHistory = history.slice(-4).map(m => `${m.role}: ${m.content}`).join('\n');
+    const classifyPrompt = `${INTENT_CLASSIFY_PROMPT}\n${context}\n\nConversation:\n${recentHistory}\n\nUser message: "${prompt}"`;
+    
+    const result = await flashModel.generateContent(classifyPrompt);
+    const text = result.response.text().trim();
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      return JSON.parse(jsonMatch[0]);
+    }
+    return { intent: 'query_generation' };
+  } catch (err) {
+    console.warn('Intent classification failed, defaulting to query_generation:', err.message);
+    return { intent: 'query_generation' };
+  }
+}
+
+async function formatDataResponse(genAI, prompt, data, toolName, schemaInfo) {
+  try {
+    const flashModel = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    const formatPrompt = `You are a helpful TigerGraph assistant. The user asked: "${prompt}"
+
+We queried the graph using the "${toolName}" operation and got this data:
+${JSON.stringify(data, null, 2)}
+
+${schemaInfo ? `Graph schema context: ${schemaInfo}` : ''}
+
+Write a clear, concise, conversational answer to the user's question based on this data.
+- Be specific with numbers and names from the data
+- Format lists nicely with line breaks
+- Keep it short and direct
+- Do NOT include raw JSON in your answer
+- Do NOT suggest GSQL queries unless the user asked for one`;
+
+    const result = await flashModel.generateContent(formatPrompt);
+    return result.response.text().trim();
+  } catch (err) {
+    console.warn('Data formatting failed:', err.message);
+    return `Here's what I found:\n\n${JSON.stringify(data, null, 2)}`;
+  }
+}
+
+async function answerSchemaQuestion(genAI, prompt, schemaInfo, statsInfo, history) {
+  try {
+    const flashModel = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    const recentHistory = history.slice(-4).map(m => `${m.role}: ${m.content}`).join('\n');
+    const answerPrompt = `You are a helpful TigerGraph assistant.
+
+Graph schema:
+${schemaInfo}
+
+${statsInfo ? `Graph statistics: ${statsInfo}` : ''}
+
+Conversation:
+${recentHistory}
+
+User question: "${prompt}"
+
+Answer the question about the schema/structure conversationally. Be specific and concise.`;
+
+    const result = await flashModel.generateContent(answerPrompt);
+    return result.response.text().trim();
+  } catch (err) {
+    console.warn('Schema answer failed:', err.message);
+    return 'I couldn\'t process that question. Try asking something else about your graph.';
+  }
+}
+
+async function handleConversation(genAI, prompt, schemaInfo, history) {
+  try {
+    const flashModel = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    const recentHistory = history.slice(-6).map(m => `${m.role}: ${m.content}`).join('\n');
+    const chatPrompt = `You are a helpful TigerGraph graph database assistant embedded in the DevHub platform.
+You help users explore their graph, generate GSQL queries, and understand graph concepts.
+Keep responses concise and friendly.
+
+${schemaInfo ? `The user's graph schema: ${schemaInfo}` : 'The user is not connected to a graph yet.'}
+
+Conversation:
+${recentHistory}
+
+User: "${prompt}"
+
+Respond naturally. If the user seems to want a query or data, suggest they ask more specifically.`;
+
+    const result = await flashModel.generateContent(chatPrompt);
+    return result.response.text().trim();
+  } catch (err) {
+    return 'Hey! I can help you generate GSQL queries, explore your graph data, or answer questions about your schema. What would you like to do?';
+  }
+}
+
+// =============================================================================
 // POST /api/gsql-ai/generate
 // =============================================================================
 router.post('/generate', authenticate, async (req, res) => {
@@ -430,51 +598,131 @@ router.post('/generate', authenticate, async (req, res) => {
       });
     }
 
-    // Try to fetch real schema from TigerGraph MCP if connected
     let realSchema = null;
     let mcpStats = null;
     let schemaSource = 'manual';
-    
+    let mcpService = null;
+
     if (useMCPSchema && getMCPConnection) {
       try {
-        const mcpService = getMCPConnection(req.user.id);
+        mcpService = getMCPConnection(req.user.id);
         if (mcpService) {
-          console.log('🔗 GSQL AI: Fetching real schema from TigerGraph MCP...');
-          
-          // Fetch schema and statistics in parallel
-          const [schemaResult, statsResult] = await Promise.allSettled([
-            mcpService.getSchema(),
-            mcpService.getStatistics()
-          ]);
-          
-          if (schemaResult.status === 'fulfilled' && schemaResult.value) {
-            realSchema = typeof schemaResult.value === 'string' 
-              ? schemaResult.value 
-              : JSON.stringify(schemaResult.value, null, 2);
+          // Prefer cached values (instant, no network). getSchema()/getStatistics()
+          // return from cache when available and only hit TigerGraph on cache miss.
+          const cachedSchema = mcpService.getCachedSchema();
+          const cachedStats = mcpService.getCachedStats();
+
+          if (cachedSchema) {
+            realSchema = typeof cachedSchema === 'string'
+              ? cachedSchema
+              : JSON.stringify(cachedSchema, null, 2);
             schemaSource = 'tigergraph_mcp';
-            console.log('✅ GSQL AI: Real schema fetched successfully');
           }
-          
-          if (statsResult.status === 'fulfilled' && statsResult.value) {
-            mcpStats = statsResult.value;
-            console.log('✅ GSQL AI: Graph statistics fetched successfully');
+          if (cachedStats) {
+            mcpStats = cachedStats;
+          }
+
+          if (!realSchema) {
+            try {
+              const schemaValue = await mcpService.getSchema();
+              if (schemaValue) {
+                realSchema = typeof schemaValue === 'string'
+                  ? schemaValue
+                  : JSON.stringify(schemaValue, null, 2);
+                schemaSource = 'tigergraph_mcp';
+              }
+            } catch (schemaErr) {
+              console.warn('[GSQL-AI] Schema fetch failed (non-fatal):', schemaErr.message);
+            }
+          }
+
+          if (!mcpStats) {
+            try {
+              mcpStats = await mcpService.getStatistics();
+            } catch {
+              // Stats are optional context; proceed without them.
+            }
           }
         }
       } catch (mcpError) {
-        console.warn('⚠️ GSQL AI: Failed to fetch MCP schema:', mcpError.message);
-        // Continue with manual schema if MCP fails
+        console.warn('[GSQL-AI] MCP context fetch failed:', mcpError.message);
       }
     }
 
-    // Use real schema if available, otherwise fall back to manual schema
     const effectiveSchema = realSchema || schema;
+    const statsInfo = mcpStats 
+      ? `Vertices: ${JSON.stringify(mcpStats.vertexCount)}, Edges: ${JSON.stringify(mcpStats.edgeCount)}`
+      : null;
 
-    // Load GSQL knowledge base on first request (lazy loading with caching)
+    // Step 1: Classify intent
+    const classification = await classifyIntent(genAI, prompt, effectiveSchema, history);
+    console.log(`🧠 Intent: ${classification.intent}${classification.tool ? ` (tool: ${classification.tool})` : ''}`);
+
+    // Step 2: Route based on intent
+    
+    // --- DATA QUESTION: Call MCP tools and format response ---
+    if (classification.intent === 'data_question' && mcpService && classification.tool) {
+      const toolFn = MCP_TOOL_MAP[classification.tool];
+      if (!toolFn) {
+        return res.json({
+          type: 'answer',
+          content: `I'm not sure how to look that up. Try asking me to generate a GSQL query instead.`,
+        });
+      }
+
+      try {
+        console.log(`🔧 MCP call: ${classification.tool}`, classification.args || {});
+        const mcpData = await toolFn(mcpService, classification.args || {});
+        const content = await formatDataResponse(genAI, prompt, mcpData, classification.tool, effectiveSchema);
+        
+        return res.json({
+          type: 'data',
+          content,
+          data: mcpData,
+          mcpTool: classification.tool,
+        });
+      } catch (mcpErr) {
+        console.error('MCP tool error:', mcpErr.message);
+        return res.json({
+          type: 'answer',
+          content: `I tried to query your graph but got an error: ${mcpErr.message}. You can try rephrasing or ask me to generate a GSQL query instead.`,
+        });
+      }
+    }
+
+    // --- DATA QUESTION but no MCP connection ---
+    if (classification.intent === 'data_question' && !mcpService) {
+      return res.json({
+        type: 'answer',
+        content: 'I\'d need a TigerGraph connection to look that up. Connect your instance first, or ask me to generate a GSQL query that you can run manually.',
+      });
+    }
+
+    // --- SCHEMA QUESTION: Answer from cached schema ---
+    if (classification.intent === 'schema_question') {
+      if (!effectiveSchema) {
+        return res.json({
+          type: 'answer',
+          content: 'No schema information available. Connect to TigerGraph or provide a schema manually.',
+        });
+      }
+      const content = await answerSchemaQuestion(genAI, prompt, effectiveSchema, statsInfo, history);
+      return res.json({ type: 'answer', content });
+    }
+
+    // --- CONVERSATION: Chat naturally ---
+    if (classification.intent === 'conversation') {
+      const content = await handleConversation(genAI, prompt, effectiveSchema, history);
+      return res.json({ type: 'answer', content });
+    }
+
+    // --- QUERY GENERATION: Original code generation flow ---
+
+    // Load GSQL knowledge base (lazy)
     if (!gsqlKnowledgeBaseChunks) {
       gsqlKnowledgeBaseChunks = loadGSQLKnowledgeBase();
     }
 
-    // RAG: Retrieve relevant context from GSQL knowledge base
     let ragContext = '';
     let relevantChunks = [];
     if (gsqlKnowledgeBaseChunks && gsqlKnowledgeBaseChunks.length > 0) {
@@ -482,102 +730,68 @@ router.post('/generate', authenticate, async (req, res) => {
         relevantChunks = retrieveRelevantGSQLChunks(prompt, effectiveSchema || '', gsqlKnowledgeBaseChunks, 7);
         if (relevantChunks.length > 0) {
           ragContext = formatGSQLRAGContext(relevantChunks);
-          console.log(`📚 GSQL RAG: Retrieved ${relevantChunks.length} relevant chunks`);
         }
       } catch (ragError) {
         console.error('GSQL RAG retrieval error:', ragError);
-        // Continue without RAG context if retrieval fails
       }
     }
 
-    // Build the full prompt with context
     let fullPrompt = prompt;
-    
     if (effectiveSchema) {
       fullPrompt = `Schema Information:\n${effectiveSchema}\n\nUser Request: ${prompt}`;
-      
-      // Add graph statistics if available
       if (mcpStats) {
-        const statsInfo = `\nGraph Statistics:\n- Total Vertices: ${JSON.stringify(mcpStats.vertexCount)}\n- Total Edges: ${JSON.stringify(mcpStats.edgeCount)}`;
-        fullPrompt = `${fullPrompt}\n${statsInfo}`;
+        fullPrompt += `\nGraph Statistics:\n- Total Vertices: ${JSON.stringify(mcpStats.vertexCount)}\n- Total Edges: ${JSON.stringify(mcpStats.edgeCount)}`;
       }
     }
-    
     if (context) {
-      fullPrompt = `${fullPrompt}\n\nAdditional Context: ${context}`;
+      fullPrompt += `\n\nAdditional Context: ${context}`;
     }
 
-    // Build enhanced system prompt with RAG context
     let enhancedSystemPrompt = GSQL_AI_SYSTEM_PROMPT_BASE;
     if (ragContext) {
-      enhancedSystemPrompt += `\n\n## RELEVANT CONTEXT FROM GSQL KNOWLEDGE BASE:\n\n${ragContext}\n\nUse this context to ensure your generated code follows official GSQL syntax, patterns, and best practices. Reference specific syntax rules, accumulator types, and patterns from this context when generating code.`;
+      enhancedSystemPrompt += `\n\n## RELEVANT CONTEXT FROM GSQL KNOWLEDGE BASE:\n\n${ragContext}\n\nUse this context to ensure your generated code follows official GSQL syntax, patterns, and best practices.`;
     }
 
-    // Initialize the model
     const model = genAI.getGenerativeModel({ model: "gemini-3-pro-preview" });
 
-    // Build chat history for conversational context
     const chatHistory = [
       { role: "user", parts: [{ text: enhancedSystemPrompt }] },
-      { role: "model", parts: [{ text: "I'm ready to help you generate GSQL queries! I have access to comprehensive GSQL documentation and best practices. What would you like to build?" }] },
+      { role: "model", parts: [{ text: "I'm ready to help you generate GSQL queries. What would you like to build?" }] },
       ...history.map(msg => ({
         role: msg.role === "assistant" ? "model" : "user",
         parts: [{ text: msg.content }],
       })),
     ];
 
-    // Use chat interface for conversation history
     const chat = model.startChat({ history: chatHistory });
     const result = await chat.sendMessage(fullPrompt);
-    const response = result.response;
-    const generatedText = response.text();
+    const generatedText = result.response.text();
 
-    // Extract code blocks if present
     const codeBlockMatch = generatedText.match(/```gsql\n([\s\S]*?)```/);
-    const code = codeBlockMatch ? codeBlockMatch[1].trim() : generatedText;
+    const code = codeBlockMatch ? codeBlockMatch[1].trim() : null;
 
-    // Extract explanation if present
     const explanationMatch = generatedText.match(/\*\*Explanation\*\*:\s*(.+?)(?:\n\n|\*\*|$)/s);
     const explanation = explanationMatch ? explanationMatch[1].trim() : null;
 
-    // Extract key features if present
-    const featuresMatch = generatedText.match(/\*\*Key Features\*\*:\s*([\s\S]*?)(?:\n\n|$)/);
-    const features = featuresMatch 
-      ? featuresMatch[1].split('\n').map(f => f.trim().replace(/^[-*]\s*/, '')).filter(f => f)
-      : [];
-
-    // Calculate average confidence score from chunk scores
-    const calculateConfidence = (chunks) => {
-      if (!chunks || chunks.length === 0) return 0;
-      const totalScore = chunks.reduce((sum, chunk) => sum + (chunk.score || 0), 0);
-      const maxPossibleScore = chunks.length * 100; // Rough estimate
-      return Math.min(100, Math.round((totalScore / maxPossibleScore) * 100));
-    };
+    // If no code block found, treat as a conversational answer
+    if (!code) {
+      return res.json({
+        type: 'answer',
+        content: generatedText,
+      });
+    }
 
     res.json({
+      type: 'query',
       code,
-      explanation: explanation || 'GSQL query generated successfully.',
-      features,
+      explanation: explanation || 'Here\'s your GSQL query.',
       fullResponse: generatedText,
       schemaSource,
-      graphStats: mcpStats || undefined,
-      ragContext: relevantChunks.length > 0 ? {
-        chunksRetrieved: relevantChunks.length,
-        relevantSections: relevantChunks.map(c => c.title),
-        confidence: calculateConfidence(relevantChunks)
-      } : undefined
     });
 
   } catch (error) {
     console.error('GSQL AI generation error:', error);
-    console.error('Error details:', {
-      message: error.message,
-      stack: error.stack,
-      code: error.code,
-      status: error.status
-    });
     
-    // Handle specific Gemini API errors
     if (error.message?.includes('429') || error.status === 429) {
       return res.status(429).json({ 
         error: 'Rate limit exceeded. Please try again in a moment.' 
@@ -591,9 +805,8 @@ router.post('/generate', authenticate, async (req, res) => {
     }
 
     res.status(500).json({ 
-      error: 'Failed to generate GSQL code. Please try again.',
+      error: 'Something went wrong. Please try again.',
       details: process.env.NODE_ENV === 'development' ? error.message : undefined,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 });

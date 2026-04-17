@@ -662,6 +662,18 @@ export interface TigerGraphStats {
   edgeTypes?: string[];
 }
 
+export interface TigerGraphSchemaResponse {
+  schema: TigerGraphSchema | null;
+  status?: number;
+  error?: string;
+}
+
+export interface TigerGraphStatsResponse {
+  statistics: TigerGraphStats | null;
+  status?: number;
+  error?: string;
+}
+
 export async function connectTigerGraph(request: TigerGraphConnectRequest): Promise<{ success: boolean; connection?: TigerGraphConnection; error?: string }> {
   try {
     const headers = getAuthHeaders();
@@ -728,7 +740,8 @@ export async function activateTigerGraphConnection(connectionId: string): Promis
     const data = await res.json();
     
     if (!res.ok) {
-      return { success: false, error: data.error || 'Failed to activate connection' };
+      const detail = data?.details ? `: ${data.details}` : '';
+      return { success: false, error: `${data.error || 'Failed to activate connection'}${detail}` };
     }
     
     return { success: true };
@@ -773,37 +786,51 @@ export async function disconnectTigerGraph(): Promise<{ success: boolean }> {
   }
 }
 
-export async function getTigerGraphSchema(): Promise<TigerGraphSchema | null> {
+export async function getTigerGraphSchema(): Promise<TigerGraphSchemaResponse> {
   try {
     const headers = getAuthHeaders();
     const res = await fetch(`${API_URL}/tigergraph/schema`, { headers });
     
     if (!res.ok) {
-      return null;
+      let error = 'Failed to get schema';
+      try {
+        const data = await res.json();
+        error = data?.details ? `${data.error || error}: ${data.details}` : (data?.error || error);
+      } catch {
+        // no-op: keep generic error
+      }
+      return { schema: null, status: res.status, error };
     }
     
     const data = await res.json();
-    return data.schema;
+    return { schema: data.schema ?? null, status: res.status };
   } catch (error) {
     console.error('TigerGraph Schema Error:', error);
-    return null;
+    return { schema: null, error: error instanceof Error ? error.message : 'Network error' };
   }
 }
 
-export async function getTigerGraphStats(): Promise<TigerGraphStats | null> {
+export async function getTigerGraphStats(): Promise<TigerGraphStatsResponse> {
   try {
     const headers = getAuthHeaders();
     const res = await fetch(`${API_URL}/tigergraph/statistics`, { headers });
     
     if (!res.ok) {
-      return null;
+      let error = 'Failed to get statistics';
+      try {
+        const data = await res.json();
+        error = data?.details ? `${data.error || error}: ${data.details}` : (data?.error || error);
+      } catch {
+        // no-op: keep generic error
+      }
+      return { statistics: null, status: res.status, error };
     }
     
     const data = await res.json();
-    return data.statistics;
+    return { statistics: data.statistics ?? null, status: res.status };
   } catch (error) {
     console.error('TigerGraph Stats Error:', error);
-    return null;
+    return { statistics: null, error: error instanceof Error ? error.message : 'Network error' };
   }
 }
 

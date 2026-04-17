@@ -26,7 +26,6 @@ import TigerGraphConnectModal from "@/components/TigerGraphConnectModal";
 import {
   generateGSQL,
   type GSQLGenerationRequest,
-  type RAGContext,
   getTigerGraphStatus,
   getTigerGraphSchema,
   getTigerGraphStats,
@@ -53,11 +52,10 @@ interface GSQLMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
+  type?: "query" | "data" | "answer";
   code?: string;
-  explanation?: string;
-  features?: string[];
-  ragContext?: RAGContext;
-  schemaSource?: "manual" | "tigergraph_mcp";
+  data?: unknown;
+  mcpTool?: string;
 }
 
 function parseQueryParams(
@@ -105,6 +103,8 @@ export default function GSQLAIPage() {
     vertexCount: number;
     edgeCount: number;
   } | null>(null);
+  const [tgContextError, setTgContextError] = useState<string | null>(null);
+  const [loadingTGContext, setLoadingTGContext] = useState(false);
 
   const [queryResults, setQueryResults] = useState<
     Record<string, QueryResult>
@@ -142,58 +142,91 @@ export default function GSQLAIPage() {
     if (user) checkTGConnection();
   }, [user]);
 
+  const normalizeCount = (value: number | Record<string, number> | undefined) => {
+    if (typeof value === "number") return value;
+    if (!value || typeof value !== "object") return 0;
+    return Object.values(value).reduce((sum, n) => sum + (typeof n === "number" ? n : 0), 0);
+  };
+
+  const loadTGContext = async (): Promise<string | null> => {
+    if (loadingTGContext) return tgContextError;
+    setLoadingTGContext(true);
+    setTgContextError(null);
+    try {
+      const [schemaResp, statsResp] = await Promise.allSettled([
+        getTigerGraphSchema(),
+        getTigerGraphStats(),
+      ]);
+
+      const schemaData = schemaResp.status === "fulfilled" ? schemaResp.value : null;
+      const statsData = statsResp.status === "fulfilled" ? statsResp.value : null;
+
+      if (schemaData?.schema) {
+        setTgSchema(schemaData.schema);
+      } else {
+        setTgSchema(null);
+      }
+
+      if (statsData?.statistics) {
+        setTgStats({
+          vertexCount: normalizeCount(statsData.statistics.vertexCount),
+          edgeCount: normalizeCount(statsData.statistics.edgeCount),
+        });
+      } else {
+        setTgStats(null);
+      }
+
+      // Only treat schema failure as a real error.
+      // Stats are optional context — a quiet degradation, not a blocker.
+      if (schemaData?.error) {
+        const message = `Schema: ${schemaData.error}`;
+        setTgContextError(message);
+        toast.error(`Connected, but failed to load graph schema. ${message}`);
+        return message;
+      }
+
+      return null;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to load TigerGraph context";
+      setTgContextError(message);
+      setTgSchema(null);
+      setTgStats(null);
+      toast.error(message);
+      return message;
+    } finally {
+      setLoadingTGContext(false);
+    }
+  };
+
   const checkTGConnection = async () => {
     try {
       const status = await getTigerGraphStatus();
       if (status.connected && status.connection) {
         setTgConnection(status.connection);
-        const [schemaData, statsData] = await Promise.all([
-          getTigerGraphSchema(),
-          getTigerGraphStats(),
-        ]);
-        if (schemaData) setTgSchema(schemaData);
-        if (statsData) {
-          setTgStats({
-            vertexCount:
-              typeof statsData.vertexCount === "number"
-                ? statsData.vertexCount
-                : 0,
-            edgeCount:
-              typeof statsData.edgeCount === "number"
-                ? statsData.edgeCount
-                : 0,
-          });
-        }
+        await loadTGContext();
+      } else {
+        setTgConnection(null);
+        setTgSchema(null);
+        setTgStats(null);
+        setTgContextError(null);
       }
     } catch (error) {
       console.error("Failed to check TG connection:", error);
     }
   };
 
-  const handleTGConnect = async (connection: TigerGraphConnection) => {
+  const handleTGConnect = async (connection: TigerGraphConnection | null) => {
+    if (!connection) {
+      setTgConnection(null);
+      setTgSchema(null);
+      setTgStats(null);
+      setTgContextError(null);
+      return;
+    }
     setTgConnection(connection);
-    try {
-      const [schemaData, statsData] = await Promise.all([
-        getTigerGraphSchema(),
-        getTigerGraphStats(),
-      ]);
-      if (schemaData) setTgSchema(schemaData);
-      if (statsData) {
-        setTgStats({
-          vertexCount:
-            typeof statsData.vertexCount === "number"
-              ? statsData.vertexCount
-              : 0,
-          edgeCount:
-            typeof statsData.edgeCount === "number" ? statsData.edgeCount : 0,
-        });
-        toast.success("Schema and stats loaded from TigerGraph!");
-      } else {
-        toast.success("Connected to TigerGraph!");
-      }
-    } catch (error) {
-      console.error("Failed to fetch schema:", error);
-      toast.success("Connected (schema fetch pending)");
+    const contextError = await loadTGContext();
+    if (!contextError) {
+      toast.success("Connected to TigerGraph!");
     }
   };
 
@@ -202,6 +235,7 @@ export default function GSQLAIPage() {
     setTgConnection(null);
     setTgSchema(null);
     setTgStats(null);
+    setTgContextError(null);
     toast.success("Disconnected from TigerGraph");
   };
 
@@ -389,12 +423,14 @@ export default function GSQLAIPage() {
       const assistantMessage: GSQLMessage = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: response.explanation || "Here's your GSQL query.",
-        code: response.code,
-        explanation: response.explanation,
-        features: response.features,
-        ragContext: response.ragContext,
-        schemaSource: tgSchema ? "tigergraph_mcp" : "manual",
+        type: response.type || "query",
+        content:
+          response.content ||
+          response.explanation ||
+          "Here's your GSQL query.",
+        code: response.type === "query" ? response.code : undefined,
+        data: response.type === "data" ? response.data : undefined,
+        mcpTool: response.mcpTool,
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
@@ -632,6 +668,20 @@ export default function GSQLAIPage() {
     );
   };
 
+  const renderDataBlock = (data: unknown) => {
+    if (data == null) return null;
+    return (
+      <details className="mt-2 group">
+        <summary className="text-[11px] text-themed-muted cursor-pointer hover:text-themed-secondary transition-colors select-none">
+          Raw data
+        </summary>
+        <pre className="mt-1 p-3 rounded-lg bg-themed-tertiary/40 border border-themed text-xs text-themed font-mono whitespace-pre-wrap max-h-48 overflow-y-auto">
+          {typeof data === "string" ? data : JSON.stringify(data, null, 2)}
+        </pre>
+      </details>
+    );
+  };
+
   const renderMessage = (message: GSQLMessage, index: number) => {
     const isUser = message.role === "user";
 
@@ -652,6 +702,16 @@ export default function GSQLAIPage() {
         ) : (
           <div className="max-w-[90%]">
             <div className="border-l-2 border-tiger-orange/30 pl-4">
+              {/* Data response indicator */}
+              {message.type === "data" && (
+                <div className="flex items-center gap-1.5 mb-2">
+                  <Database className="w-3.5 h-3.5 text-tiger-orange" />
+                  <span className="text-[11px] font-medium text-tiger-orange tracking-wide uppercase">
+                    Queried your graph
+                  </span>
+                </div>
+              )}
+
               <div
                 className="text-sm text-themed leading-relaxed whitespace-pre-wrap"
                 dangerouslySetInnerHTML={{
@@ -659,6 +719,10 @@ export default function GSQLAIPage() {
                 }}
               />
 
+              {/* Collapsible raw data for data responses */}
+              {message.type === "data" && message.data && renderDataBlock(message.data)}
+
+              {/* Code block for query responses */}
               {message.code && renderCodeBlock(message.code, message.id)}
             </div>
           </div>
@@ -719,7 +783,14 @@ export default function GSQLAIPage() {
           </div>
           <div className="flex items-center gap-1.5">
             <button
-              onClick={() => setShowConnectModal(true)}
+              onClick={() => {
+                if (!user) {
+                  setShowAuthModal(true);
+                  toast.error("Please sign in to connect TigerGraph.");
+                  return;
+                }
+                setShowConnectModal(true);
+              }}
               className={clsx(
                 "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all",
                 tgConnection
@@ -756,6 +827,17 @@ export default function GSQLAIPage() {
           </div>
         </div>
       </div>
+
+      {tgConnection && tgContextError && (
+        <div className="flex-shrink-0 border-b border-yellow-500/20 bg-yellow-500/5 px-6 py-2">
+          <div className="max-w-4xl mx-auto flex items-start gap-2 text-xs text-yellow-400">
+            <AlertCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+            <span>
+              {tgContextError}. You can still chat and generate queries.
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Schema Drawer */}
       {showSchema && (
@@ -850,7 +932,7 @@ export default function GSQLAIPage() {
                   <div className="border-l-2 border-tiger-orange/30 pl-4">
                     <div className="flex items-center gap-2 text-sm text-themed-muted">
                       <Loader2 className="w-4 h-4 animate-spin text-tiger-orange" />
-                      Generating query...
+                      Thinking...
                     </div>
                   </div>
                 </div>
@@ -943,6 +1025,8 @@ export default function GSQLAIPage() {
         onClose={() => setShowConnectModal(false)}
         onConnect={handleTGConnect}
         currentConnection={tgConnection}
+        isAuthenticated={!!user}
+        onRequireAuth={() => setShowAuthModal(true)}
       />
     </div>
   );
