@@ -117,20 +117,6 @@ try {
   console.error('❌ Failed to load user route:', error.message);
 }
 
-try {
-  app.use('/api/gsql-ai', require('./routes/gsql-ai'));
-  console.log('✅ GSQL AI route loaded');
-} catch (error) {
-  console.error('❌ Failed to load GSQL AI route:', error.message);
-}
-
-try {
-  app.use('/api/tigergraph', require('./routes/tigergraph'));
-  console.log('✅ TigerGraph route loaded');
-} catch (error) {
-  console.error('❌ Failed to load TigerGraph route:', error.message);
-}
-
 // Health check - should be accessible even if routes fail
 app.get('/api/health', (req, res) => {
   res.json({ 
@@ -146,7 +132,7 @@ app.get('/', (req, res) => {
   res.json({ 
     message: 'DevHub API Server',
     status: 'running',
-    endpoints: ['/api/health', '/api/resources', '/api/chat', '/api/gsql-ai', '/api/tigergraph']
+    endpoints: ['/api/health', '/api/resources', '/api/chat', '/api/pathfinder', '/api/user', '/api/events']
   });
 });
 
