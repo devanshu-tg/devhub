@@ -8,7 +8,8 @@
     "start": "node src/index.js",
     "seed:resources": "node src/data/seedResources.js",
     "seed:courses": "node src/data/seedCourses.js",
-    "seed:learning-paths": "node src/data/seedLearningPaths.js"
+    "seed:learning-paths": "node src/data/seedLearningPaths.js",
+    "seed:events": "node src/data/seedEvents.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

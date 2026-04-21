@@ -117,6 +117,13 @@ try {
   console.error('❌ Failed to load user route:', error.message);
 }
 
+try {
+  app.use('/api/events', require('./routes/events'));
+  console.log('✅ Events route loaded');
+} catch (error) {
+  console.error('❌ Failed to load events route:', error.message);
+}
+
 // Health check - should be accessible even if routes fail
 app.get('/api/health', (req, res) => {
   res.json({ 

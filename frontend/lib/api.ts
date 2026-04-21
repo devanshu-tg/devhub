@@ -541,10 +541,134 @@ export async function removeProgress(resourceId: string): Promise<boolean> {
       method: 'DELETE',
       headers,
     });
-    
+
     return res.ok || res.status === 204;
   } catch (error) {
     console.error('API Error:', error);
+    return false;
+  }
+}
+
+// ==================== EVENTS API ====================
+
+export type EventType = 'webinar' | 'meetup' | 'hackathon' | 'study' | 'qa' | 'blog';
+export type EventStatus = 'upcoming' | 'past';
+
+export interface EventSummary {
+  id: string;
+  slug: string;
+  title: string;
+  italicAccent: string | null;
+  type: EventType;
+  status: EventStatus;
+  startsAt: string | null;
+  endsAt: string | null;
+  location: string | null;
+  description: string | null;
+  coverImage: string | null;
+  coverTone: string | null;
+  stats: Record<string, unknown>;
+  featured: boolean;
+  createdAt: string;
+  rsvpCount?: number;
+}
+
+export interface EventPhoto {
+  id: string;
+  url: string | null;
+  caption: string | null;
+  tone: string | null;
+  span: 'hero' | 'wide' | 'default';
+  sortOrder: number;
+}
+
+export interface HackathonProject {
+  id: string;
+  place: string | null;
+  name: string;
+  team: string | null;
+  description: string | null;
+  tags: string[];
+  prize: string | null;
+  imageUrl: string | null;
+  repoUrl: string | null;
+  sortOrder: number;
+}
+
+export interface EventSponsor {
+  id: string;
+  name: string;
+  url: string | null;
+  sortOrder: number;
+}
+
+export interface EventDetail {
+  event: EventSummary;
+  photos: EventPhoto[];
+  projects: HackathonProject[];
+  sponsors: EventSponsor[];
+  userRsvped: boolean;
+}
+
+export async function getEvents(status?: EventStatus): Promise<EventSummary[]> {
+  try {
+    const url = `${API_URL}/events${status ? `?status=${status}` : ''}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Failed to fetch events');
+    const body = await res.json();
+    return Array.isArray(body.data) ? body.data : [];
+  } catch (error) {
+    console.error('Events list error:', error);
+    return [];
+  }
+}
+
+export async function getFeaturedEvent(): Promise<EventSummary | null> {
+  try {
+    const res = await fetch(`${API_URL}/events/featured`);
+    if (!res.ok) return null;
+    const body = await res.json();
+    return body.data ?? null;
+  } catch (error) {
+    console.error('Featured event error:', error);
+    return null;
+  }
+}
+
+export async function getEvent(slug: string): Promise<EventDetail | null> {
+  try {
+    const res = await fetch(`${API_URL}/events/${slug}`, { headers: getAuthHeaders() });
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error('Failed to fetch event');
+    return res.json();
+  } catch (error) {
+    console.error('Event detail error:', error);
+    return null;
+  }
+}
+
+export async function rsvpEvent(eventId: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_URL}/events/${eventId}/rsvp`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+    });
+    return res.ok;
+  } catch (error) {
+    console.error('RSVP error:', error);
+    return false;
+  }
+}
+
+export async function cancelRsvp(eventId: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_URL}/events/${eventId}/rsvp`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    });
+    return res.ok;
+  } catch (error) {
+    console.error('RSVP delete error:', error);
     return false;
   }
 }
