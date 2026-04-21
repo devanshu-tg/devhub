@@ -1,0 +1,109 @@
+/* TigerGraph DevHub — design tokens
+   Two variations share the same primary (TG orange) but diverge on
+   neutrals, depth, and motif density.
+*/
+
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&family=Geist+Mono:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap');
+
+:root {
+  /* TigerGraph brand */
+  --tg-orange: #F58220;
+  --tg-orange-600: #E26F0D;
+  --tg-orange-100: #FFE8D4;
+  --tg-orange-50: #FFF4E8;
+
+  /* Type */
+  --font-sans: 'Geist', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-mono: 'Geist Mono', 'SF Mono', Menlo, Consolas, monospace;
+  --font-serif: 'Instrument Serif', Georgia, serif;
+
+  /* Radii */
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-xl: 20px;
+}
+
+/* Variation A — Futuristic / graph-obsidian */
+.theme-a {
+  --bg: #0B0D10;
+  --bg-elev: #121519;
+  --bg-panel: #171A1F;
+  --bg-hover: #1E232A;
+  --border: #23282F;
+  --border-strong: #2E343D;
+  --fg: #F5F6F7;
+  --fg-muted: #9BA1AB;
+  --fg-subtle: #6B7280;
+  --accent: var(--tg-orange);
+  --accent-hover: #FF9640;
+  --accent-fg: #0B0D10;
+  --success: #4ADE80;
+  --node: #F58220;
+  --edge: rgba(245, 130, 32, 0.25);
+  --grid-line: rgba(245, 130, 32, 0.06);
+  --glow: 0 0 40px rgba(245, 130, 32, 0.25);
+}
+
+.theme-a.light {
+  --bg: #FAFAF7;
+  --bg-elev: #FFFFFF;
+  --bg-panel: #FFFFFF;
+  --bg-hover: #F1EFEA;
+  --border: #E8E4DC;
+  --border-strong: #D4CFC3;
+  --fg: #15181C;
+  --fg-muted: #5B6472;
+  --fg-subtle: #8B93A0;
+  --accent-fg: #FFFFFF;
+  --edge: rgba(245, 130, 32, 0.35);
+  --grid-line: rgba(20, 24, 28, 0.04);
+  --glow: 0 0 40px rgba(245, 130, 32, 0.15);
+}
+
+/* Variation B — Warm / community-focused */
+.theme-b {
+  --bg: #FBF7F1;
+  --bg-elev: #FFFFFF;
+  --bg-panel: #FFFFFF;
+  --bg-hover: #F3EDE2;
+  --border: #E7DFD1;
+  --border-strong: #D4C9B4;
+  --fg: #1C1815;
+  --fg-muted: #6B6254;
+  --fg-subtle: #978B79;
+  --accent: var(--tg-orange);
+  --accent-hover: #E26F0D;
+  --accent-fg: #FFFFFF;
+  --success: #2F9F5E;
+  --node: #F58220;
+  --edge: rgba(245, 130, 32, 0.3);
+  --grid-line: rgba(28, 24, 21, 0.04);
+  --paper: #FBF7F1;
+  --cream: #F5EEDF;
+  --ink: #1C1815;
+}
+
+.theme-b.dark {
+  --bg: #1A1714;
+  --bg-elev: #23201B;
+  --bg-panel: #2A261F;
+  --bg-hover: #322D25;
+  --border: #3A352C;
+  --border-strong: #4A4438;
+  --fg: #F5EEDF;
+  --fg-muted: #B8AE99;
+  --fg-subtle: #887E6B;
+  --paper: #1A1714;
+  --cream: #2A261F;
+  --ink: #F5EEDF;
+  --grid-line: rgba(245, 238, 223, 0.04);
+}
+
+/* Reset-ish inside variations */
+.tg-root * { box-sizing: border-box; }
+.tg-root { font-family: var(--font-sans); color: var(--fg); background: var(--bg); -webkit-font-smoothing: antialiased; letter-spacing: -0.005em; }
+
+/* Scrollbars hidden inside artboards */
+.tg-root::-webkit-scrollbar { display: none; }
+.tg-root { scrollbar-width: none; }

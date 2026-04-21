@@ -2,244 +2,112 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ===== THEME VARIABLES ===== */
-:root {
-  /* Tiger Orange */
-  --tiger-orange: #F7941D;
-  --tiger-orange-dark: #E07D0A;
-  --tiger-orange-light: #FFAB4A;
+/* ===== Design tokens — Variation B (warm paper / editorial) =====
+   Light is the default. Dark is scoped to `.dark` on <html>.
+   Brand orange stays stable across themes.
+*/
 
-  /* Light Theme (default) */
-  --surface-primary: #FFFFFF;
-  --surface-secondary: #FAFAFA;
-  --surface-tertiary: #F4F4F5;
-  
-  --border-color: #E4E4E7;
-  --border-hover: #D4D4D8;
-  
-  --text-primary: #18181B;
-  --text-secondary: #3F3F46;
-  --text-muted: #71717A;
-  
-  --scrollbar-track: #F4F4F5;
-  --scrollbar-thumb: #D4D4D8;
-  --scrollbar-thumb-hover: #A1A1AA;
-  
-  /* Toast styles */
+:root {
+  /* Typography — `geist` package sets --font-geist-sans and --font-geist-mono. */
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  /* --font-serif provided by next/font Instrument Serif loader */
+
+  /* Brand */
+  --tg-orange: #F58220;
+  --tg-orange-600: #E26F0D;
+  --tg-orange-100: #FFE8D4;
+  --tg-orange-50: #FFF4E8;
+
+  /* Theme-B light */
+  --bg: #FBF7F1;
+  --bg-elev: #FFFFFF;
+  --bg-hover: #F3EDE2;
+  --paper: #FBF7F1;
+  --cream: #F5EEDF;
+  --border: #E7DFD1;
+  --border-strong: #D4C9B4;
+  --ink: #1C1815;
+  --fg: #1C1815;
+  --fg-muted: #6B6254;
+  --fg-subtle: #978B79;
+  --accent: var(--tg-orange);
+  --accent-hover: var(--tg-orange-600);
+  --accent-fg: #FFFFFF;
+  --success: #2F9F5E;
+
+  /* Toast */
   --toast-bg: #FFFFFF;
-  --toast-text: #18181B;
-  --toast-border: #E4E4E7;
+  --toast-text: #1C1815;
+  --toast-border: #E7DFD1;
 }
 
 .dark {
-  /* Dark Theme */
-  --surface-primary: #0A0A0B;
-  --surface-secondary: #111113;
-  --surface-tertiary: #18181B;
-  
-  --border-color: #27272A;
-  --border-hover: #3F3F46;
-  
-  --text-primary: #FAFAFA;
-  --text-secondary: #A1A1AA;
-  --text-muted: #71717A;
-  
-  --scrollbar-track: #18181B;
-  --scrollbar-thumb: #3F3F46;
-  --scrollbar-thumb-hover: #52525B;
-  
-  /* Toast styles */
-  --toast-bg: #18181B;
-  --toast-text: #FAFAFA;
-  --toast-border: #3F3F46;
-}
+  --bg: #1A1714;
+  --bg-elev: #23201B;
+  --bg-hover: #322D25;
+  --paper: #1A1714;
+  --cream: #2A261F;
+  --border: #3A352C;
+  --border-strong: #4A4438;
+  --ink: #F5EEDF;
+  --fg: #F5EEDF;
+  --fg-muted: #B8AE99;
+  --fg-subtle: #887E6B;
+  --accent-fg: #1A1714;
 
-/* ===== BASE STYLES ===== */
-* {
-  box-sizing: border-box;
-  padding: 0;
-  margin: 0;
+  --toast-bg: #23201B;
+  --toast-text: #F5EEDF;
+  --toast-border: #3A352C;
 }
 
 html {
   color-scheme: light;
 }
-
 html.dark {
   color-scheme: dark;
 }
 
-html,
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
 body {
-  max-width: 100vw;
-  overflow-x: hidden;
-  background-color: var(--surface-primary);
-  color: var(--text-primary);
-  transition: color 0.3s ease;
+  margin: 0;
+  background-color: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: -0.005em;
 }
 
-/* ===== SCROLLBAR ===== */
+/* Scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
-
 ::-webkit-scrollbar-track {
-  background: var(--scrollbar-track);
+  background: transparent;
 }
-
 ::-webkit-scrollbar-thumb {
-  background: var(--scrollbar-thumb);
-  border-radius: 4px;
+  background: var(--border-strong);
+  border-radius: 999px;
 }
-
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--scrollbar-thumb-hover);
+  background: var(--fg-subtle);
 }
 
-/* ===== FOCUS & SELECTION ===== */
+/* Focus */
 :focus-visible {
-  outline: 2px solid var(--tiger-orange);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
 ::selection {
-  background-color: rgba(247, 148, 29, 0.3);
-  color: white;
+  background-color: var(--tg-orange-100);
+  color: var(--ink);
 }
 
-/* ===== TRANSITIONS ===== */
 a, button {
-  transition: all 0.2s ease;
-}
-
-/* ===== UTILITIES ===== */
-.gradient-text {
-  background: linear-gradient(135deg, var(--tiger-orange) 0%, var(--tiger-orange-light) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-/* Glass effect - adapts to theme */
-.glass {
-  background: var(--surface-secondary);
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--border-color);
-}
-
-.dark .glass {
-  background: rgba(17, 17, 19, 0.8);
-}
-
-/* Glow effect */
-.glow-orange {
-  box-shadow: 0 0 20px rgba(247, 148, 29, 0.3);
-}
-
-/* Card hover effect */
-.card-hover {
-  transition: all 0.3s ease;
-}
-
-.card-hover:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
-}
-
-.dark .card-hover:hover {
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
-}
-
-/* Subtle ambient page background */
-.bg-ambient {
-  background:
-    radial-gradient(ellipse 70% 40% at 85% 5%, rgba(247,148,29,0.05) 0%, transparent 60%),
-    radial-gradient(ellipse 50% 40% at 5% 95%, rgba(247,148,29,0.03) 0%, transparent 50%),
-    var(--surface-primary);
-}
-
-.dark .bg-ambient {
-  background:
-    radial-gradient(ellipse 70% 40% at 85% 5%, rgba(247,148,29,0.07) 0%, transparent 60%),
-    radial-gradient(ellipse 50% 40% at 5% 95%, rgba(247,148,29,0.04) 0%, transparent 50%),
-    var(--surface-primary);
-}
-
-/* Animated background gradient */
-.bg-gradient-animated {
-  background: linear-gradient(
-    -45deg,
-    var(--surface-primary),
-    var(--surface-secondary),
-    var(--surface-tertiary),
-    var(--surface-primary)
-  );
-  background-size: 400% 400%;
-  animation: gradientShift 15s ease infinite;
-}
-
-@keyframes gradientShift {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-
-/* ===== INPUT STYLES ===== */
-input, textarea, select {
-  background-color: var(--surface-primary);
-  border: 1px solid var(--border-color);
-  color: var(--text-primary);
-  transition: all 0.2s ease;
-}
-
-input:focus, textarea:focus, select:focus {
-  border-color: var(--tiger-orange);
-  box-shadow: 0 0 0 3px rgba(247, 148, 29, 0.1);
-}
-
-/* ===== BADGE STYLES ===== */
-.badge {
-  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
-}
-
-.badge-beginner {
-  @apply bg-emerald-500/20 text-emerald-400;
-}
-
-.badge-intermediate {
-  @apply bg-amber-500/20 text-amber-400;
-}
-
-.badge-advanced {
-  @apply bg-rose-500/20 text-rose-400;
-}
-
-/* ===== THEME-AWARE COMPONENT CLASSES ===== */
-.bg-themed {
-  background-color: var(--surface-primary);
-}
-
-.bg-themed-secondary {
-  background-color: var(--surface-secondary);
-}
-
-.bg-themed-tertiary {
-  background-color: var(--surface-tertiary);
-}
-
-.text-themed {
-  color: var(--text-primary);
-}
-
-.text-themed-secondary {
-  color: var(--text-secondary);
-}
-
-.text-themed-muted {
-  color: var(--text-muted);
-}
-
-.border-themed {
-  border-color: var(--border-color);
+  transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease, opacity 150ms ease;
 }

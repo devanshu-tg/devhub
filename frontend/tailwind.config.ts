@@ -10,35 +10,58 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        tiger: {
-          orange: "#F7941D",
-          "orange-dark": "#E07D0A",
-          "orange-light": "#FFAB4A",
+        tg: {
+          orange: "#F58220",
+          "orange-600": "#E26F0D",
+          "orange-100": "#FFE8D4",
+          "orange-50": "#FFF4E8",
         },
-        // Theme-aware colors using CSS variables
-        surface: {
-          primary: "var(--surface-primary)",
-          secondary: "var(--surface-secondary)",
-          tertiary: "var(--surface-tertiary)",
+        paper: "var(--paper)",
+        cream: "var(--cream)",
+        ink: "var(--ink)",
+        bg: {
+          DEFAULT: "var(--bg)",
+          elev: "var(--bg-elev)",
+          hover: "var(--bg-hover)",
         },
         border: {
-          DEFAULT: "var(--border-color)",
-          hover: "var(--border-hover)",
+          DEFAULT: "var(--border)",
+          strong: "var(--border-strong)",
         },
-        text: {
-          primary: "var(--text-primary)",
-          secondary: "var(--text-secondary)",
-          muted: "var(--text-muted)",
+        fg: {
+          DEFAULT: "var(--fg)",
+          muted: "var(--fg-muted)",
+          subtle: "var(--fg-subtle)",
         },
+        accent: {
+          DEFAULT: "var(--accent)",
+          hover: "var(--accent-hover)",
+          fg: "var(--accent-fg)",
+        },
+        success: "var(--success)",
       },
       fontFamily: {
-        sans: ["var(--font-inter)", "system-ui", "sans-serif"],
+        sans: ["var(--font-sans)", "system-ui", "sans-serif"],
+        mono: ["var(--font-mono)", "SFMono-Regular", "Menlo", "monospace"],
+        serif: ["var(--font-serif)", "Georgia", "serif"],
+      },
+      borderRadius: {
+        sm: "6px",
+        md: "10px",
+        lg: "14px",
+        xl: "20px",
+      },
+      boxShadow: {
+        soft: "0 12px 40px rgba(28, 24, 21, 0.05)",
+      },
+      letterSpacing: {
+        kicker: "0.18em",
+        tight: "-0.02em",
+        display: "-0.03em",
       },
       animation: {
-        "fade-in": "fadeIn 0.5s ease-out",
-        "slide-up": "slideUp 0.5s ease-out",
-        "slide-in-left": "slideInLeft 0.3s ease-out",
-        pulse: "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+        "fade-in": "fadeIn 0.4s ease-out",
+        "slide-up": "slideUp 0.4s ease-out",
       },
       keyframes: {
         fadeIn: {
@@ -46,12 +69,8 @@ const config: Config = {
           "100%": { opacity: "1" },
         },
         slideUp: {
-          "0%": { opacity: "0", transform: "translateY(10px)" },
+          "0%": { opacity: "0", transform: "translateY(8px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
-        },
-        slideInLeft: {
-          "0%": { opacity: "0", transform: "translateX(-10px)" },
-          "100%": { opacity: "1", transform: "translateX(0)" },
         },
       },
     },

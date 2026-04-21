@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>TigerGraph DevHub — Design Exploration</title>
+  <link rel="stylesheet" href="lib/tokens.css"/>
+  <style>
+    html, body { margin: 0; padding: 0; height: 100%; background: #f0eee9; font-family: 'Geist', -apple-system, sans-serif; }
+    #root { height: 100vh; }
+
+    /* Tweaks panel */
+    .tweaks {
+      position: fixed; bottom: 20px; right: 20px; z-index: 200;
+      width: 280px; background: #171A1F; color: #F5F6F7;
+      border: 1px solid #2E343D; border-radius: 12px;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+      font-family: 'Geist', sans-serif; font-size: 13px;
+      display: none;
+    }
+    .tweaks.open { display: block; }
+    .tweaks-hdr { padding: 14px 16px; border-bottom: 1px solid #23282F; display: flex; align-items: center; justify-content: space-between; }
+    .tweaks-hdr strong { font-weight: 600; letter-spacing: -0.2px; }
+    .tweaks-body { padding: 14px 16px; max-height: 520px; overflow: auto; }
+    .tweak-row { margin-bottom: 16px; }
+    .tweak-row:last-child { margin-bottom: 0; }
+    .tweak-lbl { font-size: 10.5px; font-family: 'Geist Mono', monospace; letter-spacing: 1.5px; color: #9BA1AB; margin-bottom: 8px; display: block; text-transform: uppercase; }
+    .tweak-row input[type="range"] { width: 100%; accent-color: #F58220; }
+    .tweak-row select, .tweak-row input[type="text"] { width: 100%; padding: 7px 10px; border-radius: 6px; border: 1px solid #2E343D; background: #0B0D10; color: #F5F6F7; font-family: inherit; font-size: 12.5px; }
+    .swatch-row { display: flex; gap: 6px; flex-wrap: wrap; }
+    .swatch { width: 28px; height: 28px; border-radius: 6px; border: 2px solid transparent; cursor: pointer; }
+    .swatch.on { border-color: #fff; }
+    .btn-row { display: flex; gap: 4px; }
+    .btn-row button { flex: 1; padding: 7px 10px; border-radius: 6px; border: 1px solid #2E343D; background: transparent; color: #9BA1AB; font-family: inherit; font-size: 12px; cursor: pointer; }
+    .btn-row button.on { background: #F58220; color: #0B0D10; border-color: #F58220; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <script type="text/babel" src="lib/design-canvas.jsx"></script>
+  <script type="text/babel" src="lib/primitives.jsx"></script>
+  <script type="text/babel" src="lib/variation-b.jsx"></script>
+  <script type="text/babel" src="lib/variation-b-pages.jsx"></script>
+  <script type="text/babel" src="lib/variation-b-new-pages.jsx"></script>
+
+  <script type="text/babel" data-presets="env,react">
+    const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+      "primaryColor": "#F58220",
+      "fontChoice": "geist",
+      "density": "default",
+      "motifDensity": 1.5,
+      "isDarkB": false
+    }/*EDITMODE-END*/;
+
+    const FONT_STACKS = {
+      geist: "'Geist', -apple-system, sans-serif",
+      inter: "'Inter', -apple-system, sans-serif",
+      ibm: "'IBM Plex Sans', sans-serif",
+      mono: "'Geist Mono', monospace",
+    };
+
+    const COLOR_SWATCHES = [
+      '#F58220', // TG orange (default)
+      '#E26F0D', // darker orange
+      '#7C3AED', // violet
+      '#2563EB', // blue
+      '#059669', // emerald
+      '#DB2777', // pink
+    ];
+
+    // Apply primary color as CSS var
+    const applyPrimary = (c) => {
+      document.documentElement.style.setProperty('--tg-orange', c);
+    };
+
+    const App = () => {
+      const [tweaks, setTweaks] = React.useState(() => {
+        try { return { ...TWEAK_DEFAULTS, ...JSON.parse(localStorage.getItem('tg-tweaks') || '{}') }; }
+        catch { return TWEAK_DEFAULTS; }
+      });
+      const [tweaksOpen, setTweaksOpen] = React.useState(false);
+
+      React.useEffect(() => {
+        applyPrimary(tweaks.primaryColor);
+        document.documentElement.style.setProperty('--font-sans', FONT_STACKS[tweaks.fontChoice] || FONT_STACKS.geist);
+        localStorage.setItem('tg-tweaks', JSON.stringify(tweaks));
+      }, [tweaks]);
+
+      // Tweak mode host bridge
+      React.useEffect(() => {
+        const onMsg = (e) => {
+          if (e.data?.type === '__activate_edit_mode') setTweaksOpen(true);
+          if (e.data?.type === '__deactivate_edit_mode') setTweaksOpen(false);
+        };
+        window.addEventListener('message', onMsg);
+        window.parent.postMessage({ type: '__edit_mode_available' }, '*');
+        return () => window.removeEventListener('message', onMsg);
+      }, []);
+
+      const patch = (k, v) => {
+        const next = { ...tweaks, [k]: v };
+        setTweaks(next);
+        window.parent.postMessage({ type: '__edit_mode_set_keys', edits: { [k]: v } }, '*');
+      };
+
+      const commonProps = {
+        motifDensity: tweaks.motifDensity,
+        density: tweaks.density,
+        fontChoice: tweaks.fontChoice,
+      };
+
+      return (
+        <>
+          <DesignCanvas>
+            <DCSection id="homepages" title="DevHub Homepage" subtitle="Warm paper / editorial direction.">
+              <DCArtboard id="var-b" label="Warm paper / editorial" width={1360} height={2400}>
+                <VarB_Homepage {...commonProps} isDark={tweaks.isDarkB} onToggleTheme={() => patch('isDarkB', !tweaks.isDarkB)}/>
+              </DCArtboard>
+            </DCSection>
+
+            <DCSection id="core-pages" title="Core product pages" subtitle="Resources · AI Chat · Pathfinder · My Learning.">
+              <DCArtboard id="b-resources" label="Resources — unified wall" width={1360} height={2000}>
+                <VarB_Page_Resources isDark={tweaks.isDarkB} onToggleTheme={() => patch('isDarkB', !tweaks.isDarkB)}/>
+              </DCArtboard>
+              <DCArtboard id="b-aichat" label="AI Chat — Learning + Q&A" width={1360} height={2100}>
+                <VarB_Page_AIChat isDark={tweaks.isDarkB} onToggleTheme={() => patch('isDarkB', !tweaks.isDarkB)}/>
+              </DCArtboard>
+              <DCArtboard id="b-pathfinder" label="Pathfinder — quiz → path" width={1360} height={1600}>
+                <VarB_Page_Pathfinder isDark={tweaks.isDarkB} onToggleTheme={() => patch('isDarkB', !tweaks.isDarkB)}/>
+              </DCArtboard>
+              <DCArtboard id="b-mylearning" label="My Learning — saved + progress" width={1360} height={1800}>
+                <VarB_Page_MyLearning isDark={tweaks.isDarkB} onToggleTheme={() => patch('isDarkB', !tweaks.isDarkB)}/>
+              </DCArtboard>
+            </DCSection>
+
+            <DCSection id="pages-b" title="Events + community" subtitle="Event detail · Forum · Tutorial · Showcase · Profile.">
+              <DCArtboard id="b-events" label="Events — upcoming + past + hackathons" width={1360} height={1700}>
+                <VarB_Page_Events isDark={tweaks.isDarkB} onToggleTheme={() => patch('isDarkB', !tweaks.isDarkB)}/>
+              </DCArtboard>
+              <DCArtboard id="b-event-detail" label="Event detail — KG Weekend '26 recap" width={1360} height={2100}>
+                <VarB_Page_EventDetail isDark={tweaks.isDarkB} onToggleTheme={() => patch('isDarkB', !tweaks.isDarkB)}/>
+              </DCArtboard>
+              <DCArtboard id="b-forum" label="Forum — discussion list" width={1360} height={1600}>
+                <VarB_Page_Forum isDark={tweaks.isDarkB} onToggleTheme={() => patch('isDarkB', !tweaks.isDarkB)}/>
+              </DCArtboard>
+              <DCArtboard id="b-tutorial" label="Tutorial — detail view" width={1360} height={2100}>
+                <VarB_Page_Tutorial isDark={tweaks.isDarkB} onToggleTheme={() => patch('isDarkB', !tweaks.isDarkB)}/>
+              </DCArtboard>
+              <DCArtboard id="b-showcase" label="Showcase — project gallery" width={1360} height={1700}>
+                <VarB_Page_Showcase isDark={tweaks.isDarkB} onToggleTheme={() => patch('isDarkB', !tweaks.isDarkB)}/>
+              </DCArtboard>
+              <DCArtboard id="b-profile" label="Profile — contributor page" width={1360} height={1500}>
+                <VarB_Page_Profile isDark={tweaks.isDarkB} onToggleTheme={() => patch('isDarkB', !tweaks.isDarkB)}/>
+              </DCArtboard>
+            </DCSection>
+          </DesignCanvas>
+
+          {/* Tweaks panel — visible only when host toggles */}
+          <div className={`tweaks ${tweaksOpen ? 'open' : ''}`}>
+            <div className="tweaks-hdr">
+              <strong>Tweaks</strong>
+              <span style={{ fontSize: 10.5, fontFamily: 'Geist Mono, monospace', color: '#9BA1AB', letterSpacing: 1.2 }}>TIGERGRAPH DEVHUB</span>
+            </div>
+            <div className="tweaks-body">
+              <div className="tweak-row">
+                <span className="tweak-lbl">Primary accent</span>
+                <div className="swatch-row">
+                  {COLOR_SWATCHES.map(c => (
+                    <div key={c} onClick={() => patch('primaryColor', c)} className={`swatch ${tweaks.primaryColor === c ? 'on' : ''}`} style={{ background: c }}/>
+                  ))}
+                </div>
+              </div>
+
+              <div className="tweak-row">
+                <span className="tweak-lbl">Font family</span>
+                <div className="btn-row">
+                  {[['geist','Geist'],['inter','Inter'],['ibm','IBM Plex']].map(([k, l]) => (
+                    <button key={k} className={tweaks.fontChoice === k ? 'on' : ''} onClick={() => patch('fontChoice', k)}>{l}</button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="tweak-row">
+                <span className="tweak-lbl">Layout density</span>
+                <div className="btn-row">
+                  {[['compact','Compact'],['default','Default'],['roomy','Roomy']].map(([k, l]) => (
+                    <button key={k} className={tweaks.density === k ? 'on' : ''} onClick={() => patch('density', k)}>{l}</button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="tweak-row">
+                <span className="tweak-lbl">Graph motif intensity · {tweaks.motifDensity.toFixed(2)}</span>
+                <input type="range" min="0" max="2" step="0.05" value={tweaks.motifDensity} onChange={e => patch('motifDensity', parseFloat(e.target.value))}/>
+              </div>
+
+              <div className="tweak-row">
+                <span className="tweak-lbl">Theme</span>
+                <div className="btn-row">
+                  <button className={tweaks.isDarkB ? 'on' : ''} onClick={() => patch('isDarkB', true)}>Dark</button>
+                  <button className={!tweaks.isDarkB ? 'on' : ''} onClick={() => patch('isDarkB', false)}>Light</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      );
+    };
+
+    // Wait for all Babel scripts to register globals before mounting.
+    const mount = () => {
+      if (!window.DesignCanvas || !window.VarB_Homepage || !window.VarB_Page_Forum) {
+        setTimeout(mount, 30); return;
+      }
+      ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+    };
+    mount();
+  </script>
+</body>
+</html>
