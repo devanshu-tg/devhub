@@ -2,393 +2,434 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { 
-  Compass, 
-  ChevronRight, 
-  ChevronLeft, 
-  CheckCircle2, 
-  Clock, 
-  Target,
-  Sparkles,
+import {
+  ArrowRight,
   BookOpen,
-  Code,
-  Zap,
+  Check,
+  Compass,
   Loader2,
-  RotateCcw
+  RotateCcw,
+  Sparkles,
 } from "lucide-react";
-import clsx from "clsx";
+import toast from "react-hot-toast";
 import { generateLearningPath, saveLearningPath, type LearningPath } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 import AuthModal from "@/components/ui/AuthModal";
-import toast from "react-hot-toast";
+import { SectionHeader } from "@/components/ui/SectionHeader";
+import { cn } from "@/lib/utils";
 
-interface QuizQuestion {
-  id: string;
+type Question = {
+  id: keyof Answers;
   question: string;
-  options: Array<{
-    value: string;
-    label: string;
-    description?: string;
-  }>;
-}
+  italic?: string;
+  options: Array<{ value: string; label: string; description?: string }>;
+};
 
-const quizQuestions: QuizQuestion[] = [
+type Answers = {
+  experience?: string;
+  goal?: string;
+  usecase?: string;
+  time?: string;
+};
+
+const QUESTIONS: Question[] = [
   {
     id: "experience",
-    question: "What's your experience with graph databases?",
+    question: "What's your experience",
+    italic: "with graph databases?",
     options: [
-      { value: "none", label: "Complete Beginner", description: "New to graphs and databases" },
-      { value: "some", label: "Some Experience", description: "Familiar with SQL, new to graphs" },
+      { value: "none", label: "Complete beginner", description: "New to graphs and databases" },
+      { value: "some", label: "Some experience", description: "Familiar with SQL, new to graphs" },
       { value: "intermediate", label: "Intermediate", description: "Used graph DBs before" },
       { value: "advanced", label: "Advanced", description: "Production graph experience" },
     ],
   },
   {
     id: "goal",
-    question: "What's your primary goal?",
+    question: "What's your primary",
+    italic: "goal?",
     options: [
-      { value: "learn", label: "Learn Fundamentals", description: "Understand graph concepts" },
-      { value: "build", label: "Build a Project", description: "Create something specific" },
+      { value: "learn", label: "Learn fundamentals", description: "Understand graph concepts" },
+      { value: "build", label: "Build a project", description: "Create something specific" },
       { value: "migrate", label: "Migrate from SQL", description: "Move existing data to graphs" },
-      { value: "optimize", label: "Optimize & Scale", description: "Improve existing graph apps" },
+      { value: "optimize", label: "Optimize & scale", description: "Improve existing graph apps" },
     ],
   },
   {
     id: "usecase",
-    question: "What use case interests you most?",
+    question: "Which use case",
+    italic: "pulls you in?",
     options: [
-      { value: "fraud", label: "Fraud Detection", description: "Real-time fraud analysis" },
+      { value: "fraud", label: "Fraud detection", description: "Real-time fraud analysis" },
       { value: "recommendations", label: "Recommendations", description: "Personalized suggestions" },
       { value: "graphrag", label: "GraphRAG / AI", description: "Knowledge graphs for LLMs" },
-      { value: "general", label: "General Analytics", description: "Exploratory graph analysis" },
+      { value: "general", label: "General analytics", description: "Exploratory graph analysis" },
     ],
   },
   {
     id: "time",
-    question: "How much time can you dedicate weekly?",
+    question: "How much time can you",
+    italic: "carve out weekly?",
     options: [
-      { value: "1hr", label: "1 Hour", description: "Quick learning sessions" },
-      { value: "3hr", label: "3-5 Hours", description: "Regular study time" },
-      { value: "10hr", label: "10+ Hours", description: "Intensive learning" },
+      { value: "1hr", label: "1 hour", description: "Quick learning sessions" },
+      { value: "3hr", label: "3–5 hours", description: "Regular study time" },
+      { value: "10hr", label: "10+ hours", description: "Intensive learning" },
       { value: "fulltime", label: "Full-time", description: "Deep dive immersion" },
     ],
   },
 ];
 
+const LETTER = ["A", "B", "C", "D", "E"];
+
 export default function PathfinderPage() {
   const router = useRouter();
   const { user } = useAuth();
   const [step, setStep] = useState<"quiz" | "loading" | "result">("quiz");
-  const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [questionIdx, setQuestionIdx] = useState(0);
+  const [answers, setAnswers] = useState<Answers>({});
   const [learningPath, setLearningPath] = useState<LearningPath | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [showAuth, setShowAuth] = useState(false);
 
-  const handleAnswer = (questionId: string, value: string) => {
-    setAnswers({ ...answers, [questionId]: value });
-  };
+  const currentQ = QUESTIONS[questionIdx];
+  const progress = ((questionIdx + 1) / QUESTIONS.length) * 100;
+  const selectedValue = answers[currentQ.id];
 
-  const handleNext = async () => {
-    if (currentQuestion < quizQuestions.length - 1) {
-      setCurrentQuestion(currentQuestion + 1);
-    } else {
-      // Generate learning path
-      setStep("loading");
-      try {
-        const path = await generateLearningPath({
-          experience: answers.experience,
-          goal: answers.goal,
-          usecase: answers.usecase,
-          time: answers.time,
-        });
-        setLearningPath(path);
-        setStep("result");
-      } catch (error) {
-        console.error("Failed to generate path:", error);
-        setStep("result");
-      }
+  async function next() {
+    if (questionIdx < QUESTIONS.length - 1) {
+      setQuestionIdx((i) => i + 1);
+      return;
     }
-  };
-
-  const handleBack = () => {
-    if (currentQuestion > 0) {
-      setCurrentQuestion(currentQuestion - 1);
+    setStep("loading");
+    try {
+      const path = await generateLearningPath({
+        experience: answers.experience ?? "",
+        goal: answers.goal ?? "",
+        usecase: answers.usecase ?? "",
+        time: answers.time ?? "",
+      });
+      setLearningPath(path);
+    } catch {
+      toast.error("Couldn't generate path");
+    } finally {
+      setStep("result");
     }
-  };
+  }
 
-  const handleRestart = () => {
+  function back() {
+    if (questionIdx > 0) setQuestionIdx((i) => i - 1);
+  }
+
+  function restart() {
     setStep("quiz");
-    setCurrentQuestion(0);
+    setQuestionIdx(0);
     setAnswers({});
     setLearningPath(null);
-  };
+  }
 
-  const handleAddToMyLearning = async () => {
+  async function addToMyLearning() {
     if (!learningPath || !user) return;
-    setIsSaving(true);
-    try {
-      const result = await saveLearningPath({
-        ...learningPath,
-        experience: answers.experience,
-        goal: answers.goal,
-        useCase: answers.usecase,
-      });
-      if (result?.pathId) {
-        toast.success("Path added to My Learning!");
-        router.push("/my-learning");
-      } else {
-        toast.error("Failed to save path. Please try again.");
-      }
-    } catch (error) {
-      console.error("Failed to save path:", error);
-      toast.error("Failed to save path. Please try again.");
-    } finally {
-      setIsSaving(false);
+    setSaving(true);
+    const result = await saveLearningPath({
+      ...learningPath,
+      experience: answers.experience,
+      goal: answers.goal,
+      useCase: answers.usecase,
+    });
+    setSaving(false);
+    if (result?.pathId) {
+      toast.success("Added to My Learning");
+      router.push("/my-learning");
+    } else {
+      toast.error("Couldn't save — try again");
     }
-  };
+  }
 
-  const currentQ = quizQuestions[currentQuestion];
-  const progress = ((currentQuestion + 1) / quizQuestions.length) * 100;
-
-  // Loading state
   if (step === "loading") {
     return (
-      <div className="max-w-4xl mx-auto flex flex-col items-center justify-center min-h-[60vh] animate-fade-in">
-        <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center mb-6">
-          <Loader2 className="w-10 h-10 text-themed animate-spin" />
+      <div className="max-w-[700px] mx-auto px-10 py-24 text-center">
+        <div className="font-mono text-[12px] tracking-kicker text-[color:var(--accent)] mb-3">/ GENERATING</div>
+        <h2 className="text-[36px] font-medium text-[color:var(--ink)] tracking-[-0.028em] mb-2">
+          Composing your <span className="font-serif italic">path…</span>
+        </h2>
+        <p className="text-[14px] text-[color:var(--fg-muted)]">Matching resources to your goals and pace.</p>
+        <Loader2 className="w-8 h-8 animate-spin text-[color:var(--accent)] mx-auto mt-6" />
+      </div>
+    );
+  }
+
+  if (step === "result") {
+    return <ResultView
+      path={learningPath}
+      onRestart={restart}
+      onSave={addToMyLearning}
+      saving={saving}
+      user={user}
+      onAuthNeeded={() => setShowAuth(true)}
+      showAuth={showAuth}
+      onCloseAuth={() => setShowAuth(false)}
+    />;
+  }
+
+  return (
+    <div className="max-w-[1160px] mx-auto w-full px-10 pt-16 pb-20">
+      <div className="grid grid-cols-1 md:grid-cols-[1.05fr_0.95fr] gap-12">
+        {/* Left intro */}
+        <div>
+          <SectionHeader
+            kicker="/ PATHFINDER"
+            title="Tell us what you're up to. We'll"
+            italic="build you a path."
+            size="lg"
+          />
+
+          <ul className="mt-10 space-y-6">
+            {[
+              { icon: Compass, label: "Mapped to your level", body: "Paths track your experience so you're never lost." },
+              { icon: BookOpen, label: "Real resources", body: "Videos, tutorials, and docs picked from the wall." },
+              { icon: Check, label: "Auto-saved progress", body: "Return anytime — everything stays in sync." },
+            ].map(({ icon: Icon, label, body }) => (
+              <li key={label} className="flex gap-4">
+                <div className="w-9 h-9 rounded-full border border-[color:var(--border)] flex items-center justify-center text-[color:var(--accent)] flex-shrink-0 mt-0.5">
+                  <Icon className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="text-[14.5px] font-semibold text-[color:var(--ink)]">{label}</div>
+                  <div className="text-[13px] text-[color:var(--fg-muted)] leading-[1.5]">{body}</div>
+                </div>
+              </li>
+            ))}
+          </ul>
         </div>
-        <h2 className="text-2xl font-bold text-themed mb-2">Creating Your Path</h2>
-        <p className="text-themed-muted">Analyzing your goals and experience...</p>
+
+        {/* Right quiz card */}
+        <div>
+          <div className="bg-[color:var(--bg-elev)] border border-[color:var(--border)] rounded-lg shadow-soft p-8">
+            {/* Progress */}
+            <div className="flex items-center justify-between mb-2">
+              <div className="font-mono text-[11px] tracking-kicker text-[color:var(--fg-subtle)]">
+                QUESTION {questionIdx + 1} OF {QUESTIONS.length}
+              </div>
+              <div className="font-mono text-[11px] text-[color:var(--fg-subtle)]">
+                ~{Math.max(1, QUESTIONS.length - questionIdx - 1)} min left
+              </div>
+            </div>
+            <div className="h-[3px] bg-[color:var(--cream)] rounded-full overflow-hidden mb-8">
+              <div
+                className="h-full bg-[color:var(--accent)] transition-all duration-500"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+
+            {/* Question */}
+            <h2 className="text-[24px] font-medium text-[color:var(--ink)] tracking-[-0.02em] leading-[1.25] mb-6">
+              {currentQ.question}
+              {currentQ.italic ? (
+                <>
+                  {" "}
+                  <span className="font-serif italic">{currentQ.italic}</span>
+                </>
+              ) : null}
+            </h2>
+
+            {/* Options */}
+            <div className="space-y-3">
+              {currentQ.options.map((option, i) => {
+                const isSelected = selectedValue === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    onClick={() => setAnswers({ ...answers, [currentQ.id]: option.value })}
+                    className={cn(
+                      "w-full text-left px-4 py-3.5 rounded-md border flex items-center gap-4 transition-all",
+                      isSelected
+                        ? "bg-[color:var(--cream)] border-[color:var(--accent)]"
+                        : "bg-[color:var(--paper)] border-[color:var(--border)] hover:border-[color:var(--border-strong)]",
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        "w-7 h-7 rounded-full border flex items-center justify-center font-mono text-[11.5px] font-semibold flex-shrink-0",
+                        isSelected
+                          ? "bg-[color:var(--accent)] border-[color:var(--accent)] text-[color:var(--accent-fg)]"
+                          : "border-[color:var(--border-strong)] text-[color:var(--fg-muted)]",
+                      )}
+                    >
+                      {LETTER[i]}
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-[14px] font-medium text-[color:var(--ink)] tracking-[-0.005em]">
+                        {option.label}
+                      </div>
+                      {option.description ? (
+                        <div className="text-[12.5px] text-[color:var(--fg-muted)] mt-0.5">{option.description}</div>
+                      ) : null}
+                    </div>
+                    {isSelected ? <Check className="w-4 h-4 text-[color:var(--accent)] flex-shrink-0" /> : null}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Nav */}
+            <div className="flex items-center justify-between mt-8">
+              <button
+                onClick={back}
+                disabled={questionIdx === 0}
+                className="px-4 py-2 rounded-full text-[13px] text-[color:var(--fg-muted)] hover:text-[color:var(--ink)] disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                ← Back
+              </button>
+              <button
+                onClick={next}
+                disabled={!selectedValue}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[color:var(--ink)] text-[color:var(--paper)] text-[13px] font-semibold disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90"
+              >
+                {questionIdx === QUESTIONS.length - 1 ? "See my path" : "Next"}
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <AuthModal isOpen={showAuth} onClose={() => setShowAuth(false)} defaultTab="login" />
+    </div>
+  );
+}
+
+function ResultView({
+  path,
+  onRestart,
+  onSave,
+  saving,
+  user,
+  onAuthNeeded,
+  showAuth,
+  onCloseAuth,
+}: {
+  path: LearningPath | null;
+  onRestart: () => void;
+  onSave: () => void;
+  saving: boolean;
+  user: unknown;
+  onAuthNeeded: () => void;
+  showAuth: boolean;
+  onCloseAuth: () => void;
+}) {
+  if (!path) {
+    return (
+      <div className="max-w-[700px] mx-auto px-10 py-24 text-center">
+        <p className="text-[14px] text-[color:var(--fg-muted)]">No path generated. Try again.</p>
+        <button onClick={onRestart} className="mt-4 px-5 py-2.5 rounded-full bg-[color:var(--ink)] text-[color:var(--paper)] text-[13px] font-medium">
+          Retake
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto animate-fade-in">
-      {step === "quiz" ? (
-        <div className="space-y-8">
-          {/* Header */}
-          <div className="text-center space-y-4">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 text-sm">
-              <Compass className="w-4 h-4" />
-              Learner Pathfinder
-            </div>
-            <h1 className="text-3xl font-bold text-themed">
-              Let&apos;s find your perfect learning path
-            </h1>
-            <p className="text-themed-muted">
-              Answer a few questions to get a personalized TigerGraph curriculum
-            </p>
-          </div>
-
-          {/* Progress Bar */}
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-themed-muted">Question {currentQuestion + 1} of {quizQuestions.length}</span>
-              <span className="text-tiger-orange">{Math.round(progress)}%</span>
-            </div>
-            <div className="h-2 bg-themed-tertiary rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-gradient-to-r from-tiger-orange to-amber-500 transition-all duration-500"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-          </div>
-
-          {/* Question Card */}
-          <div className="p-8 rounded-2xl bg-themed-secondary border border-themed">
-            <h2 className="text-xl font-semibold text-themed mb-6">{currentQ.question}</h2>
-            
-            <div className="space-y-3">
-              {currentQ.options.map((option) => (
-                <button
-                  key={option.value}
-                  onClick={() => handleAnswer(currentQ.id, option.value)}
-                  className={clsx(
-                    "w-full p-4 rounded-xl border text-left transition-all",
-                    answers[currentQ.id] === option.value
-                      ? "bg-tiger-orange/10 border-tiger-orange"
-                      : "bg-themed-tertiary/50 border-themed hover:border-tiger-orange/30"
-                  )}
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className={clsx(
-                        "font-medium",
-                        answers[currentQ.id] === option.value ? "text-tiger-orange" : "text-themed"
-                      )}>
-                        {option.label}
-                      </p>
-                      {option.description && (
-                        <p className="text-sm text-themed-muted mt-1">{option.description}</p>
-                      )}
-                    </div>
-                    {answers[currentQ.id] === option.value && (
-                      <CheckCircle2 className="w-5 h-5 text-tiger-orange" />
-                    )}
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Navigation */}
-          <div className="flex justify-between">
+    <div className="max-w-[1160px] mx-auto w-full px-10 pt-12 pb-16">
+      <SectionHeader
+        kicker="/ YOUR PATH"
+        title={path.title}
+        italic={path.duration}
+        size="lg"
+        sub={path.description}
+        right={
+          <div className="flex gap-2">
             <button
-              onClick={handleBack}
-              disabled={currentQuestion === 0}
-              className={clsx(
-                "flex items-center gap-2 px-4 py-2 rounded-lg transition-all",
-                currentQuestion === 0
-                  ? "text-themed-muted cursor-not-allowed"
-                  : "text-themed-secondary hover:text-themed"
-              )}
+              onClick={onRestart}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full border border-[color:var(--border-strong)] bg-[color:var(--bg-elev)] text-[color:var(--fg)] text-[13px] font-medium hover:bg-[color:var(--bg-hover)]"
             >
-              <ChevronLeft className="w-5 h-5" />
-              Back
-            </button>
-            <button
-              onClick={handleNext}
-              disabled={!answers[currentQ.id]}
-              className={clsx(
-                "flex items-center gap-2 px-6 py-2 rounded-xl font-medium transition-all",
-                answers[currentQ.id]
-                  ? "bg-tiger-orange text-themed hover:bg-tiger-orange-dark"
-                  : "bg-themed-tertiary text-themed-muted cursor-not-allowed"
-              )}
-            >
-              {currentQuestion === quizQuestions.length - 1 ? "See My Path" : "Next"}
-              <ChevronRight className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-      ) : (
-        /* Results View */
-        <div className="space-y-8">
-          {/* Header */}
-          <div className="text-center space-y-4">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm">
-              <Sparkles className="w-4 h-4" />
-              Your Personalized Path
-            </div>
-            <h1 className="text-3xl font-bold text-themed">
-              {learningPath?.title || "TigerGraph Learning Path"}
-            </h1>
-            <p className="text-themed-muted">{learningPath?.description}</p>
-            <div className="flex items-center justify-center gap-6 text-sm">
-              <span className="flex items-center gap-2 text-themed-secondary">
-                <Clock className="w-4 h-4 text-tiger-orange" />
-                {learningPath?.duration || "3-4 weeks"}
-              </span>
-              <span className="flex items-center gap-2 text-themed-secondary">
-                <Target className="w-4 h-4 text-tiger-orange" />
-                {learningPath?.milestones?.length || 0} milestones
-              </span>
-            </div>
-          </div>
-
-          {/* Learning Path Timeline */}
-          {learningPath?.milestones && learningPath.milestones.length > 0 ? (
-            <div className="space-y-6">
-              {learningPath.milestones.map((milestone, idx) => (
-                <div 
-                  key={idx}
-                  className="relative pl-8 pb-6 border-l-2 border-themed last:border-transparent last:pb-0"
-                >
-                  {/* Timeline dot */}
-                  <div className="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-tiger-orange border-4 border-themed" />
-                  
-                  {/* Milestone card */}
-                  <div className="p-6 rounded-2xl bg-themed-secondary border border-themed">
-                    <div className="flex items-start justify-between mb-4">
-                      <div>
-                        <span className="text-xs text-tiger-orange font-semibold uppercase tracking-wider">
-                          Week {milestone.week}
-                        </span>
-                        <h3 className="text-lg font-semibold text-themed mt-1">{milestone.title}</h3>
-                        <p className="text-sm text-themed-muted">{milestone.description}</p>
-                      </div>
-                    </div>
-
-                    {/* Resources */}
-                    <div className="space-y-2">
-                      {milestone.resources.map((resource, rIdx) => (
-                        <a
-                          key={rIdx}
-                          href={resource.url || "#"}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-3 p-3 rounded-lg bg-themed-tertiary/50 hover:bg-themed-tertiary transition-all cursor-pointer group block"
-                        >
-                          <div className="w-8 h-8 rounded-lg bg-themed-tertiary flex items-center justify-center">
-                            {(resource.type === "video" || resource.type === "course") && <Zap className="w-4 h-4 text-amber-400" />}
-                            {(resource.type === "article" || resource.type === "blog") && <BookOpen className="w-4 h-4 text-blue-400" />}
-                            {(resource.type === "tutorial" || resource.type === "code") && <Code className="w-4 h-4 text-emerald-400" />}
-                            {resource.type === "docs" && <BookOpen className="w-4 h-4 text-purple-400" />}
-                          </div>
-                          <div className="flex-1">
-                            <p className="text-sm font-medium text-themed group-hover:text-tiger-orange transition-colors">
-                              {resource.title}
-                            </p>
-                            <p className="text-xs text-themed-muted">{resource.type} • {resource.duration}</p>
-                          </div>
-                          <ChevronRight className="w-4 h-4 text-themed-muted group-hover:text-tiger-orange transition-colors" />
-                        </a>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <p className="text-themed-muted">No milestones available. Try retaking the quiz.</p>
-            </div>
-          )}
-
-          {/* Actions */}
-          <div className="flex justify-center gap-4">
-            <button
-              onClick={handleRestart}
-              disabled={isSaving}
-              className="px-6 py-3 rounded-xl bg-themed-tertiary text-themed font-medium hover:bg-themed-tertiary transition-all flex items-center gap-2 disabled:opacity-50"
-            >
-              <RotateCcw className="w-4 h-4" />
-              Retake Quiz
+              <RotateCcw className="w-4 h-4" /> Retake
             </button>
             {user ? (
               <button
-                onClick={handleAddToMyLearning}
-                disabled={isSaving}
-                className="px-6 py-3 rounded-xl bg-tiger-orange text-themed font-medium hover:bg-tiger-orange-dark transition-all flex items-center gap-2 disabled:opacity-50"
+                onClick={onSave}
+                disabled={saving}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[color:var(--accent)] text-[color:var(--accent-fg)] text-[13px] font-semibold hover:bg-[color:var(--accent-hover)] disabled:opacity-60"
               >
-                {isSaving ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <Sparkles className="w-5 h-5" />
-                )}
-                {isSaving ? "Adding..." : "Add to My Learning"}
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                Add to My Learning
               </button>
             ) : (
               <button
-                onClick={() => setShowAuthModal(true)}
-                className="px-6 py-3 rounded-xl bg-tiger-orange text-themed font-medium hover:bg-tiger-orange-dark transition-all flex items-center gap-2"
+                onClick={onAuthNeeded}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[color:var(--accent)] text-[color:var(--accent-fg)] text-[13px] font-semibold hover:bg-[color:var(--accent-hover)]"
               >
-                <Sparkles className="w-5 h-5" />
-                Sign in to Add to My Learning
+                <Sparkles className="w-4 h-4" /> Sign in to save
               </button>
             )}
           </div>
+        }
+      />
 
-          {/* Auth Modal for guests */}
-          <AuthModal
-            isOpen={showAuthModal}
-            onClose={() => setShowAuthModal(false)}
-            defaultTab="login"
-          />
+      <section className="mt-10 bg-[color:var(--cream)] border border-[color:var(--border)] rounded-lg px-8 py-10">
+        <div className="font-mono text-[11px] tracking-kicker text-[color:var(--accent)] mb-1">WHAT YOU'LL GET</div>
+        <h3 className="text-[22px] font-medium text-[color:var(--ink)] tracking-[-0.02em] mb-6">
+          Your weekly <span className="font-serif italic">milestones.</span>
+        </h3>
+
+        <div
+          className="grid gap-4"
+          style={{ gridTemplateColumns: `repeat(${Math.max(1, Math.min(path.milestones?.length ?? 0, 5))}, minmax(0, 1fr))` }}
+        >
+          {(path.milestones || []).map((m, i) => (
+            <div key={i} className="bg-[color:var(--paper)] border border-[color:var(--border)] rounded-md p-5">
+              <div className="font-serif italic text-[34px] text-[color:var(--accent)] leading-none mb-2 tracking-[-0.02em]">
+                {String(i + 1).padStart(2, "0")}
+              </div>
+              <div className="font-mono text-[10.5px] tracking-kicker text-[color:var(--fg-subtle)] mb-1.5">
+                WEEK {m.week}
+              </div>
+              <div className="text-[14px] font-semibold text-[color:var(--ink)] leading-[1.3] mb-1.5">
+                {m.title}
+              </div>
+              <div className="text-[12px] text-[color:var(--fg-muted)] leading-[1.5]">
+                {m.description}
+              </div>
+            </div>
+          ))}
         </div>
-      )}
+      </section>
+
+      {/* Resource list per milestone */}
+      <section className="mt-10 space-y-6">
+        {(path.milestones || []).map((m, i) => (
+          <div key={i} className="bg-[color:var(--bg-elev)] border border-[color:var(--border)] rounded-lg p-6">
+            <div className="flex items-baseline justify-between mb-4">
+              <div>
+                <div className="font-mono text-[11px] tracking-kicker text-[color:var(--accent)]">WEEK {m.week}</div>
+                <div className="text-[18px] font-medium text-[color:var(--ink)] tracking-[-0.012em] mt-1">{m.title}</div>
+              </div>
+              <div className="font-mono text-[11.5px] text-[color:var(--fg-subtle)]">{m.resources.length} resources</div>
+            </div>
+            <div className="space-y-2">
+              {m.resources.map((r, j) => (
+                <a
+                  key={j}
+                  href={r.url || "#"}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-4 p-3 rounded-md bg-[color:var(--cream)] hover:bg-[color:var(--bg-hover)] transition text-left group"
+                >
+                  <div className="font-mono text-[10.5px] tracking-kicker text-[color:var(--accent)] w-20 flex-shrink-0">
+                    {r.type?.toUpperCase() ?? "RESOURCE"}
+                  </div>
+                  <div className="flex-1 text-[13.5px] font-medium text-[color:var(--ink)] group-hover:text-[color:var(--accent)] transition-colors">
+                    {r.title}
+                  </div>
+                  <div className="font-mono text-[11px] text-[color:var(--fg-subtle)]">{r.duration}</div>
+                  <ArrowRight className="w-4 h-4 text-[color:var(--fg-subtle)] group-hover:text-[color:var(--accent)]" />
+                </a>
+              ))}
+            </div>
+          </div>
+        ))}
+      </section>
+
+      <AuthModal isOpen={showAuth} onClose={onCloseAuth} defaultTab="login" />
     </div>
   );
 }
