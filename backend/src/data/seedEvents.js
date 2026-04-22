@@ -206,6 +206,168 @@ const KG_SPONSORS = [
   { name: 'HuggingFace', sort_order: 6 },
 ];
 
+const AGENTS_HACK = {
+  slug: 'let-the-agent-plan-winter-25',
+  title: 'Let-the-agent-plan',
+  italic_accent: 'hack.',
+  type: 'hackathon',
+  status: 'past',
+  starts_at: '2025-12-06T16:00:00Z',
+  ends_at: '2025-12-08T23:00:00Z',
+  location: 'Hybrid · Berlin + Virtual',
+  description:
+    "180 builders, 44 teams, 48 hours. One prompt: \"let the agent plan the traversal.\" Here's everything they shipped — the winners, the photos, the livestream.",
+  cover_tone: 'warm',
+  stats: { participants: 180, projects: 44, prizes: '$7k', mentors: 14 },
+  featured: false,
+};
+
+const AGENTS_PHOTOS = [
+  { tone: 'warm',   caption: 'OPENING · BERLIN',    span: 'hero',    sort_order: 1 },
+  { tone: 'orange', caption: 'KICKOFF KEYNOTE',     span: 'default', sort_order: 2 },
+  { tone: 'warm',   caption: 'WHITEBOARDING',       span: 'default', sort_order: 3 },
+  { tone: 'orange', caption: 'MENTOR 1:1s',         span: 'default', sort_order: 4 },
+  { tone: 'warm',   caption: 'COFFEE RUN · 3AM',    span: 'default', sort_order: 5 },
+  { tone: 'orange', caption: 'DEMO DAY',            span: 'wide',    sort_order: 6 },
+  { tone: 'warm',   caption: 'CLOSING REMARKS',     span: 'default', sort_order: 7 },
+  { tone: 'orange', caption: 'GROUP SHOT',          span: 'default', sort_order: 8 },
+  { tone: 'warm',   caption: 'PRIZE CEREMONY',      span: 'default', sort_order: 9 },
+  { tone: 'orange', caption: 'AFTERGLOW',           span: 'default', sort_order: 10 },
+];
+
+const AGENTS_PROJECTS = [
+  {
+    place: '1ST',
+    name: 'plan-walker',
+    team: 'four-hops-ahead',
+    description:
+      'Agent that plans traversals by asking the graph for its own schema — no hard-coded queries. Uses GSQL as its action space.',
+    tags: ['agents', 'gsql'],
+    prize: '$4,000',
+    sort_order: 1,
+  },
+  {
+    place: '2ND',
+    name: 'hop-tutor',
+    team: 'edge-cases',
+    description:
+      'Teaches GSQL by letting a student drive a voice-controlled agent. "Show me a three-hop query between users and purchases."',
+    tags: ['edu', 'voice'],
+    prize: '$2,000',
+    sort_order: 2,
+  },
+  {
+    place: '3RD',
+    name: 'city-scout',
+    team: 'north-by-northgraph',
+    description:
+      'Urban planning agent that walks a city transit graph and proposes new bus routes. Built on real Berlin MVG data.',
+    tags: ['urbanism', 'routing'],
+    prize: '$1,000',
+    sort_order: 3,
+  },
+  {
+    place: 'PEOPLE',
+    name: 'lore-weaver',
+    team: 'plot-twist',
+    description:
+      'Story-writing tool that treats characters and plot beats as a graph. The agent suggests what should happen next.',
+    tags: ['creative', 'fun'],
+    prize: 'Crowd favorite',
+    sort_order: 4,
+  },
+];
+
+const AGENTS_SPONSORS = [
+  { name: 'TigerGraph', sort_order: 1 },
+  { name: 'Vercel', sort_order: 2 },
+  { name: 'LangChain', sort_order: 3 },
+  { name: 'Supabase', sort_order: 4 },
+  { name: 'Cloudflare', sort_order: 5 },
+  { name: 'OpenAI', sort_order: 6 },
+];
+
+const DEVCATION = {
+  slug: 'devcation-2026',
+  title: 'Devcation',
+  italic_accent: "'26.",
+  type: 'hackathon',
+  status: 'past',
+  starts_at: '2026-04-04T15:00:00Z',
+  ends_at: '2026-04-06T22:00:00Z',
+  location: 'Lisbon · in person + livestream',
+  description:
+    "Three days, one beach town, one brief: ship something graphy. 240 builders, 62 teams, a lot of bica. Here's what went down.",
+  cover_tone: 'warm',
+  stats: { participants: 240, projects: 62, prizes: '$10k', mentors: 22, views: '4.1k' },
+  featured: false,
+};
+
+const DEVCATION_PHOTOS = [
+  { tone: 'warm',   caption: 'ARRIVAL · LISBON',     span: 'hero',    sort_order: 1 },
+  { tone: 'orange', caption: 'KICKOFF · BEACH DECK', span: 'default', sort_order: 2 },
+  { tone: 'warm',   caption: 'TEAM FORMATION',       span: 'default', sort_order: 3 },
+  { tone: 'orange', caption: 'MENTOR WALK',          span: 'default', sort_order: 4 },
+  { tone: 'warm',   caption: 'SUNSET PAIR-PROGRAM',  span: 'default', sort_order: 5 },
+  { tone: 'orange', caption: 'DEMO NIGHT',           span: 'wide',    sort_order: 6 },
+  { tone: 'warm',   caption: 'JUDGE HUDDLE',         span: 'default', sort_order: 7 },
+  { tone: 'orange', caption: 'AWARDS · MAIN STAGE',  span: 'default', sort_order: 8 },
+  { tone: 'warm',   caption: 'GROUP PHOTO · 240',    span: 'default', sort_order: 9 },
+  { tone: 'orange', caption: 'BEACH AFTERPARTY',     span: 'default', sort_order: 10 },
+];
+
+const DEVCATION_PROJECTS = [
+  {
+    place: '1ST',
+    name: 'tide-charts',
+    team: 'low-water-mark',
+    description:
+      'Coastal-resilience graph linking tide gauges, storm drains, and historic flood zones. Flags neighborhoods likely to flood in the next 48 hours.',
+    tags: ['climate', 'geospatial'],
+    prize: '$5,000',
+    sort_order: 1,
+  },
+  {
+    place: '2ND',
+    name: 'bica-flow',
+    team: 'espresso-depth-first',
+    description:
+      'Realtime coffee supply-chain graph from bean to cup. Built in 40 hours with a live feed from 12 Lisbon cafés.',
+    tags: ['supply', 'iot'],
+    prize: '$2,500',
+    sort_order: 2,
+  },
+  {
+    place: '3RD',
+    name: 'fado-atlas',
+    team: 'saudade-net',
+    description:
+      'Interactive graph of Portuguese fado singers — who accompanied whom, across 120 years of recordings.',
+    tags: ['music', 'culture'],
+    prize: '$1,500',
+    sort_order: 3,
+  },
+  {
+    place: 'PEOPLE',
+    name: 'surf-buddy',
+    team: 'three-wave-rule',
+    description:
+      'Pair-up app for surfers at unfamiliar breaks. Graphs local regulars and skill levels so no one paddles out alone.',
+    tags: ['social', 'fun'],
+    prize: 'Crowd favorite',
+    sort_order: 4,
+  },
+];
+
+const DEVCATION_SPONSORS = [
+  { name: 'TigerGraph', sort_order: 1 },
+  { name: 'Vercel', sort_order: 2 },
+  { name: 'Supabase', sort_order: 3 },
+  { name: 'Hugging Face', sort_order: 4 },
+  { name: 'Linear', sort_order: 5 },
+  { name: 'Turso', sort_order: 6 },
+];
+
 async function upsertEvent(row) {
   const { data, error } = await supabase
     .from('events')
@@ -249,6 +411,18 @@ async function run() {
   await replaceChildren('hackathon_projects', kg.id, KG_PROJECTS);
   await replaceChildren('event_sponsors', kg.id, KG_SPONSORS);
   console.log(`   ✅ hackathon: ${kg.slug} (${KG_PROJECTS.length} projects, ${KG_PHOTOS.length} photos, ${KG_SPONSORS.length} sponsors)`);
+
+  const agents = await upsertEvent(AGENTS_HACK);
+  await replaceChildren('event_photos', agents.id, AGENTS_PHOTOS);
+  await replaceChildren('hackathon_projects', agents.id, AGENTS_PROJECTS);
+  await replaceChildren('event_sponsors', agents.id, AGENTS_SPONSORS);
+  console.log(`   ✅ hackathon: ${agents.slug} (${AGENTS_PROJECTS.length} projects, ${AGENTS_PHOTOS.length} photos, ${AGENTS_SPONSORS.length} sponsors)`);
+
+  const devcation = await upsertEvent(DEVCATION);
+  await replaceChildren('event_photos', devcation.id, DEVCATION_PHOTOS);
+  await replaceChildren('hackathon_projects', devcation.id, DEVCATION_PROJECTS);
+  await replaceChildren('event_sponsors', devcation.id, DEVCATION_SPONSORS);
+  console.log(`   ✅ hackathon: ${devcation.slug} (${DEVCATION_PROJECTS.length} projects, ${DEVCATION_PHOTOS.length} photos, ${DEVCATION_SPONSORS.length} sponsors)`);
 
   console.log('🌱 Done.');
 }

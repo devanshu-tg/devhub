@@ -10,6 +10,7 @@ import {
   HackathonProject,
   getEvent,
 } from "@/lib/api";
+import { MOCK_EVENT_DETAILS } from "@/lib/mockEvents";
 import { GraphMotif } from "@/components/ui/GraphMotif";
 import { ImagePlaceholder } from "@/components/ui/ImagePlaceholder";
 import { IconBadge, Chip } from "@/components/ui/Pills";
@@ -50,10 +51,13 @@ export default function EventDetailPage() {
     (async () => {
       setLoading(true);
       const result = await getEvent(slug);
-      if (!result) {
-        setNotFound(true);
-      } else {
+      const fallback = MOCK_EVENT_DETAILS[slug];
+      if (result) {
         setData(result);
+      } else if (fallback) {
+        setData(fallback);
+      } else {
+        setNotFound(true);
       }
       setLoading(false);
     })();

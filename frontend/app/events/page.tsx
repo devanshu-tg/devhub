@@ -11,6 +11,7 @@ import {
   getFeaturedEvent,
   rsvpEvent,
 } from "@/lib/api";
+import { MOCK_FEATURED, MOCK_UPCOMING, MOCK_PAST } from "@/lib/mockEvents";
 import { useAuth } from "@/components/AuthProvider";
 import { GraphMotif } from "@/components/ui/GraphMotif";
 import { Avatar } from "@/components/ui/Avatar";
@@ -54,9 +55,13 @@ export default function EventsPage() {
         getEvents("past"),
       ]);
       if (cancelled) return;
-      setFeatured(f);
-      setUpcoming(up.filter((e) => e.slug !== f?.slug).slice(0, 8));
-      setPast(ps);
+      const apiEmpty = !f && up.length === 0 && ps.length === 0;
+      const featuredData = apiEmpty ? MOCK_FEATURED : f;
+      const upcomingData = apiEmpty ? MOCK_UPCOMING : up;
+      const pastData = apiEmpty ? MOCK_PAST : ps;
+      setFeatured(featuredData);
+      setUpcoming(upcomingData.filter((e) => e.slug !== featuredData?.slug).slice(0, 8));
+      setPast(pastData);
       setLoading(false);
     })();
     return () => {
