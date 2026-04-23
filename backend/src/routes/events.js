@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { supabase } = require('../config/supabase');
 const { authenticate, optionalAuth } = require('../middleware/auth');
+const staticEvents = require('../data/staticEvents');
 
 function toCamel(row) {
   if (!row) return row;
@@ -65,38 +66,38 @@ function sponsorToCamel(row) {
  * List events with RSVP counts.
  */
 router.get('/', async (req, res) => {
-  if (!supabase) {
-    return res.json({ data: [] });
-  }
-  try {
-    const status = req.query.status;
-    let query = supabase.from('events').select('*').order('starts_at', { ascending: status === 'past' ? false : true });
-    if (status === 'upcoming' || status === 'past') {
-      query = query.eq('status', status);
-    }
-    const { data, error } = await query;
-    if (error) throw error;
-
-    // Fetch RSVP counts for each event in one go
-    const ids = (data || []).map(e => e.id);
-    let rsvpMap = {};
-    if (ids.length) {
-      const { data: rsvps, error: rsvpError } = await supabase
-        .from('event_rsvps')
-        .select('event_id');
-      if (!rsvpError && Array.isArray(rsvps)) {
-        rsvpMap = rsvps.reduce((acc, r) => {
-          acc[r.event_id] = (acc[r.event_id] || 0) + 1;
-          return acc;
-        }, {});
+  const status = req.query.status;
+  if (supabase) {
+    try {
+      let query = supabase.from('events').select('*').order('starts_at', { ascending: status === 'past' ? false : true });
+      if (status === 'upcoming' || status === 'past') {
+        query = query.eq('status', status);
       }
-    }
+      const { data, error } = await query;
+      if (error) throw error;
 
-    res.json({ data: (data || []).map(e => toCamel({ ...e, rsvp_count: rsvpMap[e.id] || 0 })) });
-  } catch (error) {
-    console.error('Events list error:', error);
-    res.status(500).json({ error: 'Database error' });
+      if (data && data.length > 0) {
+        const ids = data.map(e => e.id);
+        let rsvpMap = {};
+        if (ids.length) {
+          const { data: rsvps, error: rsvpError } = await supabase
+            .from('event_rsvps')
+            .select('event_id');
+          if (!rsvpError && Array.isArray(rsvps)) {
+            rsvpMap = rsvps.reduce((acc, r) => {
+              acc[r.event_id] = (acc[r.event_id] || 0) + 1;
+              return acc;
+            }, {});
+          }
+        }
+        return res.json({ data: data.map(e => toCamel({ ...e, rsvp_count: rsvpMap[e.id] || 0 })) });
+      }
+    } catch (error) {
+      console.warn('[events] Supabase unavailable, falling back to static data:', error.message);
+    }
   }
+  // Static fallback — shape already matches toCamel output.
+  res.json({ data: staticEvents.listEvents(status) });
 });
 
 /**
@@ -104,22 +105,23 @@ router.get('/', async (req, res) => {
  * Returns the single featured upcoming event (for the dark hero card).
  */
 router.get('/featured', async (req, res) => {
-  if (!supabase) return res.json({ data: null });
-  try {
-    const { data, error } = await supabase
-      .from('events')
-      .select('*')
-      .eq('featured', true)
-      .eq('status', 'upcoming')
-      .order('starts_at', { ascending: true })
-      .limit(1)
-      .maybeSingle();
-    if (error) throw error;
-    res.json({ data: data ? toCamel(data) : null });
-  } catch (error) {
-    console.error('Featured event error:', error);
-    res.status(500).json({ error: 'Database error' });
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('events')
+        .select('*')
+        .eq('featured', true)
+        .eq('status', 'upcoming')
+        .order('starts_at', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      if (data) return res.json({ data: toCamel(data) });
+    } catch (error) {
+      console.warn('[events/featured] Supabase unavailable, falling back to static:', error.message);
+    }
   }
+  res.json({ data: staticEvents.getFeatured() });
 });
 
 /**
@@ -127,46 +129,50 @@ router.get('/featured', async (req, res) => {
  * Full event detail including photos, projects, sponsors.
  */
 router.get('/:slug', optionalAuth, async (req, res) => {
-  if (!supabase) return res.status(404).json({ error: 'Not found' });
-  try {
-    const { data: event, error } = await supabase
-      .from('events')
-      .select('*')
-      .eq('slug', req.params.slug)
-      .maybeSingle();
-
-    if (error) throw error;
-    if (!event) return res.status(404).json({ error: 'Not found' });
-
-    const [photosRes, projectsRes, sponsorsRes, rsvpCountRes] = await Promise.all([
-      supabase.from('event_photos').select('*').eq('event_id', event.id).order('sort_order', { ascending: true }),
-      supabase.from('hackathon_projects').select('*').eq('event_id', event.id).order('sort_order', { ascending: true }),
-      supabase.from('event_sponsors').select('*').eq('event_id', event.id).order('sort_order', { ascending: true }),
-      supabase.from('event_rsvps').select('id', { count: 'exact', head: true }).eq('event_id', event.id),
-    ]);
-
-    let userRsvped = false;
-    if (req.user?.id) {
-      const { data: mine } = await supabase
-        .from('event_rsvps')
-        .select('id')
-        .eq('event_id', event.id)
-        .eq('user_id', req.user.id)
+  if (supabase) {
+    try {
+      const { data: event, error } = await supabase
+        .from('events')
+        .select('*')
+        .eq('slug', req.params.slug)
         .maybeSingle();
-      userRsvped = !!mine;
-    }
 
-    res.json({
-      event: toCamel({ ...event, rsvp_count: rsvpCountRes.count || 0 }),
-      photos: (photosRes.data || []).map(photoToCamel),
-      projects: (projectsRes.data || []).map(projectToCamel),
-      sponsors: (sponsorsRes.data || []).map(sponsorToCamel),
-      userRsvped,
-    });
-  } catch (error) {
-    console.error('Event detail error:', error);
-    res.status(500).json({ error: 'Database error' });
+      if (error) throw error;
+      if (event) {
+        const [photosRes, projectsRes, sponsorsRes, rsvpCountRes] = await Promise.all([
+          supabase.from('event_photos').select('*').eq('event_id', event.id).order('sort_order', { ascending: true }),
+          supabase.from('hackathon_projects').select('*').eq('event_id', event.id).order('sort_order', { ascending: true }),
+          supabase.from('event_sponsors').select('*').eq('event_id', event.id).order('sort_order', { ascending: true }),
+          supabase.from('event_rsvps').select('id', { count: 'exact', head: true }).eq('event_id', event.id),
+        ]);
+
+        let userRsvped = false;
+        if (req.user?.id) {
+          const { data: mine } = await supabase
+            .from('event_rsvps')
+            .select('id')
+            .eq('event_id', event.id)
+            .eq('user_id', req.user.id)
+            .maybeSingle();
+          userRsvped = !!mine;
+        }
+
+        return res.json({
+          event: toCamel({ ...event, rsvp_count: rsvpCountRes.count || 0 }),
+          photos: (photosRes.data || []).map(photoToCamel),
+          projects: (projectsRes.data || []).map(projectToCamel),
+          sponsors: (sponsorsRes.data || []).map(sponsorToCamel),
+          userRsvped,
+        });
+      }
+    } catch (error) {
+      console.warn(`[events/${req.params.slug}] Supabase unavailable, falling back to static:`, error.message);
+    }
   }
+  // Static fallback
+  const detail = staticEvents.getEventDetail(req.params.slug);
+  if (!detail) return res.status(404).json({ error: 'Not found' });
+  res.json({ ...detail, userRsvped: false });
 });
 
 /**

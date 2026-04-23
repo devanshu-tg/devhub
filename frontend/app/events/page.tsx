@@ -11,7 +11,6 @@ import {
   getFeaturedEvent,
   rsvpEvent,
 } from "@/lib/api";
-import { MOCK_FEATURED, MOCK_UPCOMING, MOCK_PAST } from "@/lib/mockEvents";
 import { useAuth } from "@/components/AuthProvider";
 import { GraphMotif } from "@/components/ui/GraphMotif";
 import { Avatar } from "@/components/ui/Avatar";
@@ -55,13 +54,9 @@ export default function EventsPage() {
         getEvents("past"),
       ]);
       if (cancelled) return;
-      const apiEmpty = !f && up.length === 0 && ps.length === 0;
-      const featuredData = apiEmpty ? MOCK_FEATURED : f;
-      const upcomingData = apiEmpty ? MOCK_UPCOMING : up;
-      const pastData = apiEmpty ? MOCK_PAST : ps;
-      setFeatured(featuredData);
-      setUpcoming(upcomingData.filter((e) => e.slug !== featuredData?.slug).slice(0, 8));
-      setPast(pastData);
+      setFeatured(f);
+      setUpcoming(up.filter((e) => e.slug !== f?.slug).slice(0, 8));
+      setPast(ps);
       setLoading(false);
     })();
     return () => {
@@ -256,9 +251,12 @@ export default function EventsPage() {
               <p className="text-[13px] text-[color:var(--fg-muted)] leading-[1.5]">
                 We&apos;ll help with venue, snacks, and speakers. Just bring the community.
               </p>
-              <button className="mt-4 px-4 py-2.5 rounded-full bg-[color:var(--ink)] text-[color:var(--paper)] text-[13px] font-semibold hover:opacity-90">
+              <Link
+                href="/events/apply-to-host"
+                className="mt-4 inline-flex items-center px-4 py-2.5 rounded-full bg-[color:var(--ink)] text-[color:var(--paper)] text-[13px] font-semibold hover:opacity-90"
+              >
                 Apply to host →
-              </button>
+              </Link>
             </div>
 
             <div>
@@ -268,9 +266,9 @@ export default function EventsPage() {
               {pastSidebar.length === 0 ? (
                 <div className="text-[12.5px] text-[color:var(--fg-muted)]">No past events yet.</div>
               ) : (
-                pastSidebar.map((p, i) => {
+                pastSidebar.map((p) => {
                   const d = splitDate(p.startsAt);
-                  const views = (p.stats as any)?.views as string | undefined;
+                  const views = (p.stats as { views?: string })?.views;
                   return (
                     <Link
                       key={p.id}
@@ -294,6 +292,78 @@ export default function EventsPage() {
           </aside>
         </div>
       </section>
+
+      {/* Past events — highlighted section */}
+      {past.length > 0 ? (
+        <section className="px-10 pb-24">
+          <div className="relative rounded-[14px] border border-[color:var(--border)] bg-[color:var(--cream)] p-10 overflow-hidden">
+            <GraphMotif density={0.4} opacity={0.18} seed={31} />
+            <div className="relative">
+              <div className="flex items-end justify-between gap-6 mb-8">
+                <div>
+                  <div className="font-mono text-[11px] tracking-[0.18em] text-[color:var(--accent)] mb-2 font-semibold">
+                    / PAST EVENTS
+                  </div>
+                  <h2 className="text-[28px] font-medium tracking-[-0.028em] text-[color:var(--ink)]">
+                    From the <span className="font-serif italic">archive.</span>
+                  </h2>
+                  <p className="mt-2 text-[13.5px] text-[color:var(--fg-muted)] max-w-[520px]">
+                    Talks, workshops, and community meetups we&apos;ve hosted — most have recordings or slides.
+                  </p>
+                </div>
+                <div className="font-mono text-[11px] tracking-[0.14em] text-[color:var(--fg-subtle)]">
+                  {past.length} total
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {past.map((p) => {
+                  const d = splitDate(p.startsAt);
+                  const hosts = (p.stats as { hosts?: string[] })?.hosts;
+                  return (
+                    <Link
+                      key={p.id}
+                      href={`/events/${p.slug}`}
+                      className="group flex flex-col gap-3 p-5 rounded-[10px] bg-[color:var(--paper)] border border-[color:var(--border)] hover:border-[color:var(--border-strong)] hover:shadow-[0_6px_20px_-12px_rgba(0,0,0,0.18)] transition"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="inline-flex items-center gap-2 font-mono text-[10.5px] tracking-[0.14em] text-[color:var(--fg-subtle)]">
+                          <span className="text-[color:var(--accent)] font-semibold">{d.month} {d.day}</span>
+                          <span>·</span>
+                          <span>{TYPE_LABEL[p.type]}</span>
+                        </div>
+                      </div>
+                      <div className="text-[15.5px] font-semibold text-[color:var(--ink)] leading-[1.3] tracking-[-0.012em]">
+                        {p.title}
+                        {p.italicAccent ? (
+                          <>
+                            {" "}
+                            <span className="font-serif italic">{p.italicAccent}</span>
+                          </>
+                        ) : null}
+                      </div>
+                      {p.description ? (
+                        <p className="text-[12.5px] text-[color:var(--fg-muted)] leading-[1.5] line-clamp-2">
+                          {p.description}
+                        </p>
+                      ) : null}
+                      <div className="mt-auto pt-1 font-mono text-[11px] text-[color:var(--fg-subtle)] flex items-center gap-1.5">
+                        {hosts?.length ? (
+                          <span className="truncate">{hosts.slice(0, 2).join(", ")}{hosts.length > 2 ? " +" : ""}</span>
+                        ) : p.location ? (
+                          <span className="truncate">{p.location}</span>
+                        ) : (
+                          <span>On demand</span>
+                        )}
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }

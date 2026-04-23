@@ -124,6 +124,13 @@ try {
   console.error('❌ Failed to load events route:', error.message);
 }
 
+try {
+  app.use('/api/contact', require('./routes/contact'));
+  console.log('✅ Contact route loaded');
+} catch (error) {
+  console.error('❌ Failed to load contact route:', error.message);
+}
+
 // Health check - should be accessible even if routes fail
 app.get('/api/health', (req, res) => {
   res.json({ 

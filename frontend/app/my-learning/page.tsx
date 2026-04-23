@@ -21,6 +21,7 @@ import {
   getAllLearningPaths,
   getBookmarks,
   getPathProgress,
+  removeBookmark,
   updatePathProgress,
   type BookmarkedResource,
   type PathProgress,
@@ -127,6 +128,18 @@ export default function MyLearningPage() {
     setProgress(null);
     const { paths: refreshed } = await getAllLearningPaths();
     setPaths(refreshed ?? []);
+  }
+
+  async function handleRemoveBookmark(id: string) {
+    const prev = bookmarks;
+    setBookmarks((b) => b.filter((x) => x.id !== id));
+    try {
+      await removeBookmark(id);
+      toast.success("Removed from saved");
+    } catch {
+      setBookmarks(prev);
+      toast.error("Couldn't remove");
+    }
   }
 
   async function handleDeleteConfirm() {
@@ -251,7 +264,7 @@ export default function MyLearningPage() {
 
   // ───────── Stats ─────────
   const completedPaths = paths.filter((p) => p.status === "completed" || p.progressPercentage === 100).length;
-  const inProgress = paths.filter((p) => p.status !== "completed" && p.progressPercentage > 0 && p.progressPercentage < 100).length;
+  const inProgress = paths.filter((p) => p.status !== "completed" && p.progressPercentage < 100).length;
   const lessonsDone = paths.reduce((acc, p) => acc + (p.completedResources ?? 0), 0);
 
   const stats: Array<[string, string]> = [
@@ -261,18 +274,18 @@ export default function MyLearningPage() {
     [String(lessonsDone), "lessons done"],
   ];
 
-  // ───────── Empty state ─────────
-  if (paths.length === 0 && bookmarks.length === 0) {
+  // ───────── Empty state (no paths — bookmarks still render below if present) ─────────
+  if (paths.length === 0) {
     return (
       <div className="w-full">
         <Banner name={displayName} stats={stats} />
         <section className="max-w-[1160px] mx-auto w-full px-10 py-24 text-center">
           <Kicker className="mb-3">/ GET STARTED</Kicker>
           <h2 className="text-[36px] font-medium text-[color:var(--ink)] tracking-[-0.028em] leading-[1.1]">
-            No paths yet. Let's <span className="font-serif italic">build one.</span>
+            No paths yet. Let&apos;s <span className="font-serif italic">build one.</span>
           </h2>
           <p className="mt-4 text-[14.5px] text-[color:var(--fg-muted)] max-w-[520px] mx-auto leading-[1.55]">
-            Answer five quick questions and we'll compose a path from the resource wall that matches your pace.
+            Answer five quick questions and we&apos;ll compose a path from the resource wall that matches your pace.
           </p>
           <Link
             href="/pathfinder"
@@ -281,6 +294,24 @@ export default function MyLearningPage() {
             Start the quiz <ArrowRight className="w-4 h-4" />
           </Link>
         </section>
+        {bookmarks.length > 0 ? (
+          <SavedSection
+            bookmarks={bookmarks}
+            tab={bookmarkTab}
+            onTabChange={setBookmarkTab}
+            onOpen={(r) => setSelectedResource(r)}
+            onRemove={handleRemoveBookmark}
+          />
+        ) : null}
+        {selectedResource ? (
+          <ResourceModal
+            resource={selectedResource}
+            isOpen={!!selectedResource}
+            onClose={() => setSelectedResource(null)}
+            isBookmarked={bookmarks.some((b) => b.id === selectedResource.id)}
+            onToggleBookmark={() => handleRemoveBookmark(selectedResource.id)}
+          />
+        ) : null}
       </div>
     );
   }
@@ -312,6 +343,13 @@ export default function MyLearningPage() {
               >
                 Start another
               </Link>
+              <button
+                onClick={() => setDeleteConfirm({ id: featuredPath.id, title: featuredPath.title })}
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full border border-[color:var(--border)] bg-[color:var(--bg-elev)] text-[color:var(--fg-muted)] text-[13px] font-medium hover:bg-[color:var(--bg-hover)] hover:text-[color:var(--ink)]"
+                aria-label="Delete learning path"
+              >
+                <Trash2 className="w-3.5 h-3.5" /> Delete
+              </button>
             </div>
           </div>
 
@@ -350,6 +388,7 @@ export default function MyLearningPage() {
           tab={bookmarkTab}
           onTabChange={setBookmarkTab}
           onOpen={(r) => setSelectedResource(r)}
+          onRemove={handleRemoveBookmark}
         />
       ) : null}
 
@@ -359,7 +398,7 @@ export default function MyLearningPage() {
           isOpen={!!selectedResource}
           onClose={() => setSelectedResource(null)}
           isBookmarked={bookmarks.some((b) => b.id === selectedResource.id)}
-          onToggleBookmark={undefined}
+          onToggleBookmark={() => handleRemoveBookmark(selectedResource.id)}
         />
       ) : null}
 
@@ -590,11 +629,13 @@ function SavedSection({
   tab,
   onTabChange,
   onOpen,
+  onRemove,
 }: {
   bookmarks: BookmarkedResource[];
   tab: BookmarkTab;
   onTabChange: (t: BookmarkTab) => void;
   onOpen: (r: Resource) => void;
+  onRemove: (id: string) => void | Promise<void>;
 }) {
   const TABS: Array<{ value: BookmarkTab; label: string }> = [
     { value: "all", label: "All" },
@@ -629,7 +670,7 @@ function SavedSection({
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filtered.map((b) => (
-            <SavedCard key={b.id} resource={b} onOpen={() => onOpen(b)} />
+            <SavedCard key={b.id} resource={b} onOpen={() => onOpen(b)} onRemove={() => onRemove(b.id)} />
           ))}
         </div>
       )}
@@ -637,7 +678,7 @@ function SavedSection({
   );
 }
 
-function SavedCard({ resource, onOpen }: { resource: BookmarkedResource; onOpen: () => void }) {
+function SavedCard({ resource, onOpen, onRemove }: { resource: BookmarkedResource; onOpen: () => void; onRemove: () => void }) {
   const typeLabel = TYPE_LABEL[resource.type] ?? resource.type.toUpperCase();
   const tone: "orange" | "warm" = resource.type === "video" || resource.type === "blog" ? "orange" : "warm";
   const showThumb = resource.thumbnail && !resource.thumbnail.includes("tigergraph.com/wp-content");
@@ -661,6 +702,14 @@ function SavedCard({ resource, onOpen }: { resource: BookmarkedResource; onOpen:
         <span className="absolute top-3 left-3 inline-flex items-center px-2 py-0.5 rounded-full bg-[color:var(--paper)]/90 border border-[color:var(--border)] font-mono text-[10px] font-semibold tracking-[0.14em] text-[color:var(--ink)]">
           {typeLabel}
         </span>
+        <button
+          onClick={(e) => { e.stopPropagation(); onRemove(); }}
+          className="absolute top-2.5 right-2.5 inline-flex items-center justify-center w-7 h-7 rounded-full bg-[color:var(--paper)]/90 border border-[color:var(--border)] text-[color:var(--fg-muted)] opacity-0 group-hover:opacity-100 hover:text-[color:var(--ink)] hover:bg-[color:var(--paper)] transition"
+          aria-label="Remove bookmark"
+          title="Remove bookmark"
+        >
+          <X className="w-3.5 h-3.5" />
+        </button>
       </div>
 
       <div className="p-4">

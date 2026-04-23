@@ -5,6 +5,7 @@
 
 const cron = require('node-cron');
 const { fetchTigerGraphVideos } = require('./youtube');
+const { fetchTigerGraphBlogs } = require('./blogs');
 const { supabase } = require('../config/supabase');
 
 /**
@@ -86,21 +87,81 @@ async function syncYouTubeVideos() {
 }
 
 /**
+ * Sync TigerGraph blog posts to the resources table
+ */
+async function syncBlogs() {
+  if (!supabase) {
+    console.log('⚠️  Database not configured. Skipping blog sync.');
+    return;
+  }
+  try {
+    console.log('🔄 [Scheduler] Starting automatic blog sync...');
+    const startTime = Date.now();
+
+    const blogs = await fetchTigerGraphBlogs();
+    console.log(`📦 [Scheduler] Upserting ${blogs.length} blog posts to database...`);
+
+    let inserted = 0;
+    let updated = 0;
+    let errors = 0;
+
+    for (const blog of blogs) {
+      try {
+        const { data: existing } = await supabase
+          .from('resources')
+          .select('id')
+          .eq('url', blog.url)
+          .eq('type', 'blog')
+          .maybeSingle();
+
+        if (existing) {
+          const { error } = await supabase
+            .from('resources')
+            .update({
+              title: blog.title,
+              description: blog.description,
+              thumbnail: blog.thumbnail,
+              skill_level: blog.skill_level,
+              use_cases: blog.use_cases,
+            })
+            .eq('id', existing.id);
+          if (error) throw error;
+          updated++;
+        } else {
+          const { error } = await supabase.from('resources').insert([blog]);
+          if (error) throw error;
+          inserted++;
+        }
+      } catch (err) {
+        console.error(`Failed to upsert blog ${blog.url}:`, err.message);
+        errors++;
+      }
+    }
+
+    const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+    console.log(`✅ [Scheduler] Blog sync complete in ${duration}s: ${inserted} new, ${updated} updated, ${errors} errors`);
+  } catch (error) {
+    console.error('❌ [Scheduler] Blog sync failed:', error.message);
+  }
+}
+
+/**
  * Initialize scheduler
  */
 function startScheduler() {
-  console.log('⏰ YouTube sync scheduler initialized');
-  
-  // Schedule sync every day at 3:00 AM
+  console.log('⏰ YouTube + Blog sync scheduler initialized');
+
+  // Schedule daily sync at 3:00 AM (videos + blogs)
   // Cron format: second minute hour day month weekday
   cron.schedule('0 3 * * *', () => {
     console.log('⏰ [Scheduler] Triggered daily sync at 3:00 AM');
     syncYouTubeVideos();
+    syncBlogs();
   }, {
     timezone: "Asia/Kolkata" // Adjust to your timezone
   });
-  
-  console.log('📅 Next sync scheduled for 3:00 AM daily');
+
+  console.log('📅 Next sync scheduled for 3:00 AM daily (videos + blogs)');
 }
 
 /**
@@ -111,8 +172,15 @@ async function runSyncNow() {
   await syncYouTubeVideos();
 }
 
+async function runBlogSyncNow() {
+  console.log('🚀 [Manual] Running blog sync now...');
+  await syncBlogs();
+}
+
 module.exports = {
   startScheduler,
   runSyncNow,
+  runBlogSyncNow,
   syncYouTubeVideos,
+  syncBlogs,
 };

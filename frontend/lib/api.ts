@@ -672,3 +672,25 @@ export async function cancelRsvp(eventId: string): Promise<boolean> {
     return false;
   }
 }
+
+export interface ApplyToHostPayload {
+  name: string;
+  email: string;
+  city: string;
+  intent: 'meetup' | 'sponsor' | 'both';
+  topic: string;
+  message: string;
+}
+
+export async function applyToHost(payload: ApplyToHostPayload): Promise<{ success: boolean }> {
+  const res = await fetch(`${API_URL}/contact/apply-to-host`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data?.error || 'Submit failed');
+  }
+  return res.json();
+}

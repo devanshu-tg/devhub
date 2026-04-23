@@ -18,9 +18,9 @@ import { Kicker } from "@/components/ui/SectionHeader";
 
 const STATS: Array<[string, string]> = [
   ["2,000+", "builders"],
-  ["428", "resources"],
-  ["58", "hackathon projects"],
-  ["47", "countries"],
+  ["1,200+", "resources"],
+  ["100+", "hackathon projects"],
+  ["50+", "events"],
 ];
 
 const FEATURES = [
@@ -166,7 +166,7 @@ function StatsStrip() {
     <section className="bg-[color:var(--cream)] border-b border-[color:var(--border)]">
       <div className="max-w-[1200px] mx-auto px-10 py-12 grid grid-cols-2 md:grid-cols-4 gap-8">
         {STATS.map(([value, label]) => (
-          <div key={label}>
+          <div key={label} className="flex flex-col items-center text-center">
             <div className="font-serif italic text-[46px] leading-none tracking-[-0.028em] text-[color:var(--ink)]">
               {value}
             </div>

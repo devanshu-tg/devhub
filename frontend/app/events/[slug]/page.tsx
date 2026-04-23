@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowRight, BookOpen, Calendar, Github, Play, Users } from "lucide-react";
+import { ArrowRight, ArrowUpRight, BookOpen, Calendar, Github, Play, Users } from "lucide-react";
 import {
   EventDetail,
   EventPhoto,
@@ -95,6 +95,7 @@ export default function EventDetailPage() {
 
   const { event, photos, projects, sponsors } = data;
   const stats = event.stats as Record<string, string | number | undefined>;
+  const externalUrl = typeof stats?.external_url === "string" ? stats.external_url : null;
   const statInlines = [
     { label: "participants", value: stats?.participants },
     { label: "projects", value: stats?.projects },
@@ -142,6 +143,16 @@ export default function EventDetailPage() {
                   </span>
                 ))}
               </div>
+            ) : null}
+            {externalUrl ? (
+              <a
+                href={externalUrl}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="mt-6 inline-flex items-center gap-2 px-5 py-3 rounded-full bg-[color:var(--ink)] text-[color:var(--paper)] text-[13px] font-semibold hover:opacity-90"
+              >
+                View on original host <ArrowUpRight className="w-4 h-4" />
+              </a>
             ) : null}
           </div>
           <div className="relative rounded-lg overflow-hidden border border-[color:var(--border)]">
