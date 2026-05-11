@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { X, Mail, Lock, User, Loader2, AlertCircle, CheckCircle } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 
@@ -21,6 +22,10 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login" }: Aut
 
   const { signIn, signUp } = useAuth();
 
+  // Portal target only exists after mount (SSR safety).
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   const resetForm = () => {
     setEmail("");
     setPassword("");
@@ -33,6 +38,21 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login" }: Aut
     setActiveTab(tab);
     resetForm();
   };
+
+  // Close on Escape + lock body scroll while open
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [isOpen, onClose]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,177 +75,172 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login" }: Aut
           setError(error.message);
         } else {
           setSuccess("Account created! Please check your email to verify your account.");
-          // Don't close modal - let user see the success message
         }
       }
-    } catch (err) {
+    } catch {
       setError("An unexpected error occurred. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+  const modal = (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="auth-modal-title"
+    >
       {/* Backdrop */}
-      <div 
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+      <button
+        type="button"
+        aria-label="Close"
         onClick={onClose}
+        className="absolute inset-0 bg-black/55 backdrop-blur-[3px] cursor-default"
       />
 
       {/* Modal */}
-      <div className="relative w-full max-w-md mx-4 bg-themed-secondary rounded-2xl shadow-2xl border border-themed overflow-hidden animate-fade-in">
+      <div className="relative w-full max-w-[440px] bg-[color:var(--paper)] border border-[color:var(--border)] rounded-[16px] shadow-[0_24px_60px_-15px_rgba(0,0,0,0.35)] overflow-hidden">
         {/* Close button */}
         <button
+          type="button"
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 rounded-lg text-themed-muted hover:text-themed hover:bg-themed-tertiary transition-all z-10"
+          aria-label="Close dialog"
+          className="absolute top-3.5 right-3.5 p-1.5 rounded-full text-[color:var(--fg-subtle)] hover:text-[color:var(--ink)] hover:bg-[color:var(--bg-hover)] transition z-10"
         >
-          <X className="w-5 h-5" />
+          <X className="w-[18px] h-[18px]" />
         </button>
 
         {/* Header */}
-        <div className="p-6 pb-0">
-          <h2 className="text-2xl font-bold text-themed mb-2">
-            {activeTab === "login" ? "Welcome Back" : "Create Account"}
+        <div className="px-7 pt-7 pb-4">
+          <h2
+            id="auth-modal-title"
+            className="text-[24px] font-medium tracking-[-0.02em] text-[color:var(--ink)] leading-[1.2]"
+          >
+            {activeTab === "login" ? (
+              <>
+                Welcome <span className="font-serif italic">back.</span>
+              </>
+            ) : (
+              <>
+                Create an <span className="font-serif italic">account.</span>
+              </>
+            )}
           </h2>
-          <p className="text-themed-secondary text-sm">
-            {activeTab === "login" 
-              ? "Sign in to access your bookmarks and progress" 
-              : "Join DevHub to track your learning journey"}
+          <p className="mt-1.5 text-[13.5px] text-[color:var(--fg-muted)] leading-[1.5]">
+            {activeTab === "login"
+              ? "Sign in to access your bookmarks, saved paths, and progress."
+              : "Join DevHub to track learning, save resources, and join events."}
           </p>
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-themed mx-6 mt-4">
+        <div className="flex border-b border-[color:var(--border)] mx-7">
           <button
+            type="button"
             onClick={() => handleTabChange("login")}
-            className={`flex-1 py-3 text-sm font-medium transition-all relative ${
+            className={`flex-1 py-2.5 text-[13px] font-mono tracking-[0.08em] transition relative ${
               activeTab === "login"
-                ? "text-tiger-orange"
-                : "text-themed-muted hover:text-themed"
+                ? "text-[color:var(--ink)]"
+                : "text-[color:var(--fg-subtle)] hover:text-[color:var(--fg-muted)]"
             }`}
           >
-            Sign In
+            SIGN IN
             {activeTab === "login" && (
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-tiger-orange" />
+              <span className="absolute -bottom-px left-0 right-0 h-[2px] bg-[color:var(--accent)]" />
             )}
           </button>
           <button
+            type="button"
             onClick={() => handleTabChange("signup")}
-            className={`flex-1 py-3 text-sm font-medium transition-all relative ${
+            className={`flex-1 py-2.5 text-[13px] font-mono tracking-[0.08em] transition relative ${
               activeTab === "signup"
-                ? "text-tiger-orange"
-                : "text-themed-muted hover:text-themed"
+                ? "text-[color:var(--ink)]"
+                : "text-[color:var(--fg-subtle)] hover:text-[color:var(--fg-muted)]"
             }`}
           >
-            Sign Up
+            SIGN UP
             {activeTab === "signup" && (
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-tiger-orange" />
+              <span className="absolute -bottom-px left-0 right-0 h-[2px] bg-[color:var(--accent)]" />
             )}
           </button>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {/* Error message */}
+        <form onSubmit={handleSubmit} className="px-7 py-6 space-y-4">
           {error && (
-            <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-500 text-sm">
-              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            <div className="flex items-start gap-2 px-3 py-2.5 rounded-lg bg-red-500/10 border border-red-500/25 text-red-600 dark:text-red-400 text-[12.5px] leading-[1.45]">
+              <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-[2px]" />
               <span>{error}</span>
             </div>
           )}
 
-          {/* Success message */}
           {success && (
-            <div className="flex items-center gap-2 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-sm">
-              <CheckCircle className="w-4 h-4 flex-shrink-0" />
+            <div className="flex items-start gap-2 px-3 py-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-emerald-600 dark:text-emerald-400 text-[12.5px] leading-[1.45]">
+              <CheckCircle className="w-3.5 h-3.5 flex-shrink-0 mt-[2px]" />
               <span>{success}</span>
             </div>
           )}
 
-          {/* Display Name (signup only) */}
           {activeTab === "signup" && (
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-themed-secondary">
-                Display Name
-              </label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-themed-muted" />
-                <input
-                  type="text"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="Your name"
-                  className="w-full pl-11 pr-4 py-3 rounded-xl bg-themed-tertiary border border-themed text-themed placeholder:text-themed-muted focus:border-tiger-orange focus:ring-2 focus:ring-tiger-orange/20 transition-all"
-                />
-              </div>
-            </div>
+            <Field
+              label="Display name"
+              icon={<User className="w-4 h-4" />}
+              type="text"
+              value={displayName}
+              onChange={setDisplayName}
+              placeholder="Your name"
+            />
           )}
 
-          {/* Email */}
-          <div className="space-y-1">
-            <label className="text-sm font-medium text-themed-secondary">
-              Email
-            </label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-themed-muted" />
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                required
-                className="w-full pl-11 pr-4 py-3 rounded-xl bg-themed-tertiary border border-themed text-themed placeholder:text-themed-muted focus:border-tiger-orange focus:ring-2 focus:ring-tiger-orange/20 transition-all"
-              />
-            </div>
-          </div>
+          <Field
+            label="Email"
+            icon={<Mail className="w-4 h-4" />}
+            type="email"
+            value={email}
+            onChange={setEmail}
+            placeholder="you@example.com"
+            required
+          />
 
-          {/* Password */}
-          <div className="space-y-1">
-            <label className="text-sm font-medium text-themed-secondary">
-              Password
-            </label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-themed-muted" />
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder={activeTab === "signup" ? "Min. 6 characters" : "Your password"}
-                required
-                minLength={activeTab === "signup" ? 6 : undefined}
-                className="w-full pl-11 pr-4 py-3 rounded-xl bg-themed-tertiary border border-themed text-themed placeholder:text-themed-muted focus:border-tiger-orange focus:ring-2 focus:ring-tiger-orange/20 transition-all"
-              />
-            </div>
-          </div>
+          <Field
+            label="Password"
+            icon={<Lock className="w-4 h-4" />}
+            type="password"
+            value={password}
+            onChange={setPassword}
+            placeholder={activeTab === "signup" ? "Min. 6 characters" : "Your password"}
+            required
+            minLength={activeTab === "signup" ? 6 : undefined}
+          />
 
-          {/* Submit button */}
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 rounded-xl bg-tiger-orange text-white font-semibold hover:bg-tiger-orange-dark transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="w-full py-3 rounded-full bg-[color:var(--ink)] text-[color:var(--paper)] text-[13.5px] font-semibold hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {loading ? (
               <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                {activeTab === "login" ? "Signing in..." : "Creating account..."}
+                <Loader2 className="w-4 h-4 animate-spin" />
+                {activeTab === "login" ? "Signing in…" : "Creating account…"}
               </>
+            ) : activeTab === "login" ? (
+              "Sign In"
             ) : (
-              activeTab === "login" ? "Sign In" : "Create Account"
+              "Create Account"
             )}
           </button>
 
-          {/* Footer text */}
-          <p className="text-xs text-themed-muted text-center pt-2">
+          <p className="text-[12.5px] text-[color:var(--fg-muted)] text-center pt-1">
             {activeTab === "login" ? (
               <>
                 Don&apos;t have an account?{" "}
                 <button
                   type="button"
                   onClick={() => handleTabChange("signup")}
-                  className="text-tiger-orange hover:underline"
+                  className="text-[color:var(--accent)] hover:underline font-semibold"
                 >
                   Sign up
                 </button>
@@ -236,7 +251,7 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login" }: Aut
                 <button
                   type="button"
                   onClick={() => handleTabChange("login")}
-                  className="text-tiger-orange hover:underline"
+                  className="text-[color:var(--accent)] hover:underline font-semibold"
                 >
                   Sign in
                 </button>
@@ -244,6 +259,52 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login" }: Aut
             )}
           </p>
         </form>
+      </div>
+    </div>
+  );
+
+  // Portal escapes any ancestor with `transform` / `filter` / `perspective`
+  // (e.g. the sticky navbar) that would otherwise trap `position: fixed`.
+  return createPortal(modal, document.body);
+}
+
+function Field({
+  label,
+  icon,
+  type,
+  value,
+  onChange,
+  placeholder,
+  required,
+  minLength,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  type: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  required?: boolean;
+  minLength?: number;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <label className="block text-[11.5px] font-mono tracking-[0.08em] text-[color:var(--fg-subtle)]">
+        {label.toUpperCase()}
+      </label>
+      <div className="relative">
+        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[color:var(--fg-subtle)] pointer-events-none">
+          {icon}
+        </span>
+        <input
+          type={type}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          required={required}
+          minLength={minLength}
+          className="w-full pl-11 pr-4 py-2.5 rounded-[10px] bg-[color:var(--bg-elev)] border border-[color:var(--border)] text-[14px] text-[color:var(--ink)] placeholder:text-[color:var(--fg-subtle)] focus:outline-none focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--accent)]/15 transition"
+        />
       </div>
     </div>
   );
