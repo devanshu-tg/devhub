@@ -18,12 +18,13 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     setMounted(true);
-    // Check localStorage first, then system preference
+    // Light is the default. Dark only kicks in if the user has explicitly
+    // toggled it before (persisted to localStorage). We intentionally do NOT
+    // honour the OS `prefers-color-scheme: dark` setting — the site reads
+    // best in its light editorial palette, and dark must be a deliberate opt-in.
     const stored = localStorage.getItem("theme") as Theme | null;
-    if (stored) {
+    if (stored === "dark" || stored === "light") {
       setThemeState(stored);
-    } else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
-      setThemeState("dark");
     }
   }, []);
 
