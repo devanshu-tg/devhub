@@ -2,6 +2,11 @@ const express = require('express');
 const router = express.Router();
 const { supabase } = require('../config/supabase');
 const { authenticate, optionalAuth } = require('../middleware/auth');
+const { rateLimit } = require('../middleware/rateLimit');
+
+// /generate hits Gemini and is the expensive endpoint here. Cap aggressively.
+const generateLimiter = rateLimit({ windowMs: 60_000, max: 10, name: 'pathfinder-generate' });
+const writeLimiter = rateLimit({ windowMs: 60_000, max: 60, name: 'pathfinder-write' });
 
 // Fallback resources when Supabase is empty or not connected
 // Curated TigerGraph docs and resources so Pathfinder always shows useful content
@@ -945,7 +950,7 @@ function getPathKey(answers) {
 }
 
 // POST /api/pathfinder/generate - Generate learning path based on quiz answers
-router.post('/generate', optionalAuth, async (req, res) => {
+router.post('/generate', optionalAuth, generateLimiter, async (req, res) => {
   try {
     const { experience, goal, usecase, time } = req.body;
     
@@ -992,7 +997,7 @@ router.post('/generate', optionalAuth, async (req, res) => {
 });
 
 // POST /api/pathfinder/save-path - Save learning path to user's My Learning (authenticated)
-router.post('/save-path', authenticate, async (req, res) => {
+router.post('/save-path', authenticate, writeLimiter, async (req, res) => {
   try {
     if (!supabase) {
       return res.status(503).json({ error: 'Database not available' });
@@ -1255,16 +1260,28 @@ router.get('/progress/:pathId', authenticate, async (req, res) => {
 });
 
 // POST /api/pathfinder/progress/:pathId - Mark resource as complete/incomplete
-router.post('/progress/:pathId', authenticate, async (req, res) => {
+router.post('/progress/:pathId', authenticate, writeLimiter, async (req, res) => {
   try {
     if (!supabase) {
       return res.status(503).json({ error: 'Database not available' });
     }
 
     const { pathId } = req.params;
-    const { milestoneIndex, resourceIndex, completed } = req.body;
+    const { milestoneIndex, resourceIndex, completed } = req.body || {};
 
-    console.log('[Progress Update] Request:', { pathId, milestoneIndex, resourceIndex, completed, userId: req.user.id });
+    // Validate inputs before they touch the database — these become row keys.
+    if (typeof pathId !== 'string' || !/^[0-9a-f-]{8,64}$/i.test(pathId)) {
+      return res.status(400).json({ error: 'Invalid pathId' });
+    }
+    if (!Number.isInteger(milestoneIndex) || milestoneIndex < 0 || milestoneIndex > 500) {
+      return res.status(400).json({ error: 'Invalid milestoneIndex' });
+    }
+    if (!Number.isInteger(resourceIndex) || resourceIndex < 0 || resourceIndex > 500) {
+      return res.status(400).json({ error: 'Invalid resourceIndex' });
+    }
+    if (typeof completed !== 'boolean') {
+      return res.status(400).json({ error: 'completed must be boolean' });
+    }
 
     // Verify path belongs to user
     const { data: path, error: pathError } = await supabase

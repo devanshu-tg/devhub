@@ -1,13 +1,8 @@
 // Load environment variables FIRST before any other imports
 require('dotenv').config();
 
-// Log environment check
-console.log('🔍 Environment check:');
-console.log(`  NODE_ENV: ${process.env.NODE_ENV || 'not set'}`);
-console.log(`  PORT: ${process.env.PORT || 'not set'}`);
-console.log(`  FRONTEND_URL: ${process.env.FRONTEND_URL || 'not set'}`);
-console.log(`  SUPABASE_URL: ${process.env.SUPABASE_URL ? 'set' : 'not set'}`);
-console.log(`  GEMINI_API_KEY: ${process.env.GEMINI_API_KEY ? 'set' : 'not set'}`);
+// Log non-sensitive boot info only (no key presence — avoids signalling attackers what's wired up)
+console.log(`🔍 Boot: env=${process.env.NODE_ENV || 'development'} port=${process.env.PORT || 3001}`);
 
 const express = require('express');
 const cors = require('cors');
@@ -25,47 +20,40 @@ try {
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Middleware - Ultra-permissive CORS for Railway/Vercel deployment
-const frontendUrl = process.env.FRONTEND_URL 
-  ? process.env.FRONTEND_URL.replace(/\/$/, '') // Remove trailing slash
+// CORS: whitelist + safe wildcards for vercel preview / railway. NEVER reflect arbitrary origins
+// when `credentials: true` — that's equivalent to disabling SOP.
+const frontendUrl = process.env.FRONTEND_URL
+  ? process.env.FRONTEND_URL.replace(/\/$/, '')
   : 'http://localhost:3000';
 
-const allowedOrigins = [
-  'http://localhost:3000',
-  frontendUrl,
-  'https://devhub-tg.vercel.app',
-  'https://devhub-tg.vercel.app/', // With trailing slash too
-].filter(Boolean);
+const exactAllowed = new Set(
+  [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    frontendUrl,
+    'https://devhub-tg.vercel.app',
+  ].filter(Boolean)
+);
 
-console.log('🌐 Allowed CORS origins:', allowedOrigins);
-console.log('🌐 NODE_ENV:', process.env.NODE_ENV);
-console.log('🌐 FRONTEND_URL from env:', process.env.FRONTEND_URL);
+// Patterns for preview deploys + railway backends. Tightened to *.vercel.app / *.railway.app only.
+const allowedHostPatterns = [
+  /^https?:\/\/localhost(:\d+)?$/,
+  /^https?:\/\/127\.0\.0\.1(:\d+)?$/,
+  /^https:\/\/([a-z0-9-]+\.)*vercel\.app$/i,
+  /^https:\/\/([a-z0-9-]+\.)*railway\.app$/i,
+];
 
-// Ultra-permissive CORS - allow all origins in production to avoid blocking
+function isOriginAllowed(origin) {
+  if (!origin) return true; // server-to-server, curl, mobile apps
+  const stripped = origin.replace(/\/$/, '');
+  if (exactAllowed.has(stripped)) return true;
+  return allowedHostPatterns.some((re) => re.test(stripped));
+}
+
 app.use(cors({
   origin: function (origin, callback) {
-    // Always allow requests with no origin
-    if (!origin) {
-      return callback(null, true);
-    }
-    
-    // In production, be VERY permissive - allow all vercel.app and railway.app
-    if (process.env.NODE_ENV === 'production') {
-      // Allow any vercel.app or railway.app domain
-      if (origin.includes('vercel.app') || origin.includes('railway.app') || origin.includes('localhost')) {
-        return callback(null, true);
-      }
-      // Also check exact matches
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-      // In production, allow everything to avoid blocking (can tighten later)
-      console.log(`✅ Allowing production origin: ${origin}`);
-      return callback(null, true);
-    }
-    
-    // Development: allow all
-    return callback(null, true);
+    if (isOriginAllowed(origin)) return callback(null, true);
+    return callback(new Error(`Origin not allowed by CORS: ${origin}`));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH', 'HEAD'],
@@ -76,17 +64,23 @@ app.use(cors({
   optionsSuccessStatus: 204,
 }));
 
-// Explicit OPTIONS handler as fallback
-app.options('*', (req, res) => {
-  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
-  res.header('Access-Control-Allow-Credentials', 'true');
-  res.header('Access-Control-Max-Age', '86400');
-  res.sendStatus(204);
+// Baseline security headers (replaces need for the `helmet` dep — no new install required).
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  res.setHeader('X-XSS-Protection', '0');
+  res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+  // HSTS only meaningful over HTTPS; safe to send always (browsers ignore on http://)
+  res.setHeader('Strict-Transport-Security', 'max-age=63072000; includeSubDomains');
+  // Hide framework fingerprint
+  res.removeHeader('X-Powered-By');
+  next();
 });
+app.disable('x-powered-by');
 
-app.use(express.json());
+// Bounded body size — defeats DoS by 100MB JSON POSTs
+app.use(express.json({ limit: '100kb' }));
 
 // Routes - with error handling for route loading
 try {
@@ -150,20 +144,20 @@ app.get('/', (req, res) => {
   });
 });
 
-// Error handling middleware - ensure CORS headers are set even on errors
+// Error handler — log full detail server-side, never leak stack/internals to clients.
 app.use((err, req, res, next) => {
-  console.error('Error:', err.stack);
-  
-  // Ensure CORS headers are set even on errors
+  console.error('Error:', err && err.stack ? err.stack : err);
+
+  // Keep CORS sane on error responses — only echo the origin if it's allowed.
   const origin = req.headers.origin;
-  if (origin && (origin.includes('vercel.app') || origin.includes('railway.app') || origin.includes('localhost'))) {
+  if (origin && isOriginAllowed(origin)) {
     res.header('Access-Control-Allow-Origin', origin);
     res.header('Access-Control-Allow-Credentials', 'true');
   }
-  
-  res.status(err.status || 500).json({ 
-    error: err.message || 'Something went wrong!',
-    ...(process.env.NODE_ENV !== 'production' && { stack: err.stack })
+
+  const isDev = process.env.NODE_ENV === 'development';
+  res.status(err.status || 500).json({
+    error: isDev ? (err.message || 'Internal error') : 'Internal error',
   });
 });
 

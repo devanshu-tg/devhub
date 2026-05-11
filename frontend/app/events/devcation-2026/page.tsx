@@ -10,14 +10,51 @@ import {
   Users,
   Award,
   CheckCircle2,
+  Camera,
+  Code2,
 } from "lucide-react";
 import { GraphMotif } from "@/components/ui/GraphMotif";
 import { Kicker } from "@/components/ui/SectionHeader";
+import { DEVCATION_PROJECTS } from "@/lib/devcationProjects";
 
 const RULEBOOK_URL =
   "https://docs.google.com/document/d/1JHbw0n5pgSTf7pOG8z89mN1iT4-1ue4L3vhrJrIX7aI/edit?tab=t.0";
 const TIGERGRAPH_TRACK_BRIEF_URL =
   "https://docs.google.com/document/d/1eyeIV8YsxLFSc8S3DH7i6uJFk5ks-DBRisx7e52CKJs/edit?usp=sharing";
+
+type PhotoSpan = "hero" | "wide" | "tall" | "default";
+
+type GalleryPhoto = {
+  id: string;
+  src: string;
+  caption: string;
+  span: PhotoSpan;
+};
+
+const GALLERY: GalleryPhoto[] = [
+  { id: "g01", src: "/event-gallery/devcation/devcation-01.jpeg", caption: "OPENING · IIT DELHI", span: "hero" },
+  { id: "g02", src: "/event-gallery/devcation/devcation-02.jpeg", caption: "KICKOFF", span: "default" },
+  { id: "g03", src: "/event-gallery/devcation/devcation-03.jpeg", caption: "TEAM FORMATION", span: "default" },
+  { id: "g04", src: "/event-gallery/devcation/devcation-04.jpeg", caption: "HACK IN PROGRESS", span: "wide" },
+  { id: "g05", src: "/event-gallery/devcation/devcation-05.jpeg", caption: "TIGERGRAPH TRACK · WINNERS", span: "default" },
+  { id: "g06", src: "/event-gallery/devcation/devcation-06.jpeg", caption: "MENTOR ROUNDS", span: "default" },
+  { id: "g07", src: "/event-gallery/devcation/devcation-07.jpeg", caption: "DEMO STAGE", span: "tall" },
+  { id: "g08", src: "/event-gallery/devcation/devcation-08.jpeg", caption: "PITCH NIGHT", span: "default" },
+  { id: "g09", src: "/event-gallery/devcation/devcation-09.jpeg", caption: "WORKING SESSIONS", span: "default" },
+  { id: "g10", src: "/event-gallery/devcation/devcation-10.jpeg", caption: "JUDGING", span: "default" },
+  { id: "g11", src: "/event-gallery/devcation/devcation-11.jpeg", caption: "AWARDS", span: "wide" },
+  { id: "g12", src: "/event-gallery/devcation/devcation-12.jpeg", caption: "TRACK SHOWCASE", span: "default" },
+  { id: "g13", src: "/event-gallery/devcation/devcation-13.jpeg", caption: "HALLWAYS", span: "default" },
+  { id: "g14", src: "/event-gallery/devcation/devcation-14.jpeg", caption: "BREAK", span: "default" },
+  { id: "g15", src: "/event-gallery/devcation/devcation-15.jpeg", caption: "WHITEBOARDING", span: "default" },
+  { id: "g16", src: "/event-gallery/devcation/devcation-16.jpeg", caption: "BUILDERS", span: "default" },
+  { id: "g17", src: "/event-gallery/devcation/devcation-17.jpeg", caption: "COLLABORATION", span: "default" },
+  { id: "g18", src: "/event-gallery/devcation/devcation-18.jpeg", caption: "FINAL PUSH", span: "default" },
+  { id: "g19", src: "/event-gallery/devcation/devcation-19.jpeg", caption: "STAGE · RECAP", span: "default" },
+  { id: "g20", src: "/event-gallery/devcation/devcation-20.jpeg", caption: "CLOSING", span: "default" },
+  { id: "g21", src: "/event-gallery/devcation/devcation-21.jpeg", caption: "GROUP PHOTO", span: "wide" },
+];
+
 
 const STAGES = [
   {
@@ -107,7 +144,7 @@ export default function DevcationEventPage() {
             </span>
           </div>
 
-          <div className="mt-10 flex items-center gap-5 flex-wrap">
+          <div className="mt-10 flex items-center gap-3 flex-wrap">
             <a
               href={TIGERGRAPH_TRACK_BRIEF_URL}
               target="_blank"
@@ -116,6 +153,12 @@ export default function DevcationEventPage() {
             >
               TigerGraph Track Brief <ArrowUpRight className="w-4 h-4" />
             </a>
+            <Link
+              href="/events/devcation-2026/projects"
+              className="inline-flex items-center gap-2 px-5 py-3 rounded-full border border-[color:var(--accent)] bg-[color:var(--accent)]/[0.08] text-[color:var(--accent)] text-[13.5px] font-semibold hover:bg-[color:var(--accent)]/[0.15]"
+            >
+              <Code2 className="w-4 h-4" /> Projects ({DEVCATION_PROJECTS.length})
+            </Link>
             <a
               href={RULEBOOK_URL}
               target="_blank"
@@ -268,8 +311,93 @@ export default function DevcationEventPage() {
         </div>
       </section>
 
+      {/* Projects teaser — link out to the dedicated page */}
+      <section className="max-w-[1160px] mx-auto px-10 py-12">
+        <Link
+          href="/events/devcation-2026/projects"
+          className="group relative block overflow-hidden rounded-[14px] border border-[color:var(--border)] bg-[color:var(--paper)] p-8 hover:border-[color:var(--border-strong)] hover:shadow-[0_8px_30px_-15px_rgba(0,0,0,0.18)] transition"
+        >
+          <div className="grid grid-cols-[1fr_auto] gap-8 items-center">
+            <div>
+              <Kicker className="mb-3">/ TIGERGRAPH TRACK PROJECTS</Kicker>
+              <h2 className="text-[30px] font-medium tracking-[-0.028em] text-[color:var(--ink)] leading-[1.15] mb-3">
+                Browse all{" "}
+                <span className="font-serif italic">
+                  {DEVCATION_PROJECTS.length} submissions.
+                </span>
+              </h2>
+              <p className="text-[14px] text-[color:var(--fg-muted)] leading-[1.6] max-w-[600px]">
+                Every TigerGraph Track team from Devcation Delhi 2026 — team leaders, GitHub
+                repos, slides, demos, and how each one integrated TigerGraph. Searchable.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 px-6 py-3.5 rounded-full bg-[color:var(--ink)] text-[color:var(--paper)] text-[13.5px] font-semibold group-hover:opacity-90 whitespace-nowrap">
+              <Code2 className="w-4 h-4" />
+              View projects
+              <ArrowUpRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+            </div>
+          </div>
+        </Link>
+      </section>
+
+      {/* Gallery */}
+      <section className="bg-[color:var(--cream)] border-y border-[color:var(--border)] py-16">
+        <div className="max-w-[1160px] mx-auto px-10">
+          <div className="flex items-end justify-between gap-6 mb-8">
+            <div>
+              <Kicker className="mb-3">/ GALLERY</Kicker>
+              <h2 className="text-[32px] font-medium tracking-[-0.028em] text-[color:var(--ink)] leading-[1.15]">
+                Three days at <span className="font-serif italic">IIT Delhi.</span>
+              </h2>
+              <p className="mt-2 text-[13.5px] text-[color:var(--fg-muted)] max-w-[560px]">
+                Moments from the TigerGraph Track at Devcation Delhi 2026 — kickoff to closing.
+              </p>
+            </div>
+            <div className="font-mono text-[11px] tracking-[0.14em] text-[color:var(--fg-subtle)] pb-1 inline-flex items-center gap-1.5">
+              <Camera className="w-3 h-3" />
+              {GALLERY.length} photos
+            </div>
+          </div>
+
+          <div
+            className="grid grid-cols-2 md:grid-cols-4 gap-2.5"
+            style={{ gridAutoRows: "180px" }}
+          >
+            {GALLERY.map((p) => {
+              const style =
+                p.span === "hero"
+                  ? { gridColumn: "span 2", gridRow: "span 2" }
+                  : p.span === "wide"
+                    ? { gridColumn: "span 2" }
+                    : p.span === "tall"
+                      ? { gridRow: "span 2" }
+                      : {};
+              return (
+                <div
+                  key={p.id}
+                  className="relative rounded-md overflow-hidden bg-[color:var(--bg-elev)] group"
+                  style={style}
+                >
+                  <img
+                    src={p.src}
+                    alt={p.caption}
+                    loading="lazy"
+                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+                  />
+                  <div className="absolute inset-x-0 bottom-0 px-3 py-2 bg-gradient-to-t from-black/65 via-black/25 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="font-mono text-[10.5px] tracking-[0.14em] text-white font-semibold">
+                      {p.caption}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
       {/* Resources */}
-      <section className="max-w-[1160px] mx-auto px-10 pb-20">
+      <section className="max-w-[1160px] mx-auto px-10 py-20">
         <div className="relative p-8 rounded-lg bg-[color:var(--ink)] text-[color:var(--paper)] overflow-hidden">
           <GraphMotif density={0.6} opacity={0.3} seed={51} color="var(--tg-orange)" />
           <div className="relative grid grid-cols-[1fr_auto] gap-10 items-end">

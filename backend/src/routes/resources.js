@@ -3,6 +3,16 @@ const router = express.Router();
 const { supabase } = require('../config/supabase');
 const { fetchTigerGraphVideos } = require('../services/youtube');
 const { syncYouTubeVideos } = require('../services/scheduler');
+const { authenticate } = require('../middleware/auth');
+const { requireAdmin } = require('../middleware/admin');
+
+// Resource validation — narrow the surface for create/update.
+const VALID_TYPES = new Set(['video', 'tutorial', 'docs', 'blog', 'course']);
+const VALID_SKILL_LEVELS = new Set(['beginner', 'intermediate', 'advanced']);
+const SAFE_URL = /^https:\/\//i;
+function isString(v, max = 2000) {
+  return typeof v === 'string' && v.length > 0 && v.length <= max;
+}
 
 // Mock data fallback when Supabase is not configured
 const mockResources = [
@@ -244,19 +254,34 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// POST /api/resources - Create new resource
-router.post('/', async (req, res) => {
-  const { title, description, type, skillLevel, useCases, url, thumbnail, duration } = req.body;
-  
+// POST /api/resources - Create new resource (admin only)
+router.post('/', authenticate, requireAdmin, async (req, res) => {
+  const { title, description, type, skillLevel, useCases, url, thumbnail, duration } = req.body || {};
+
+  if (!isString(title, 300)) return res.status(400).json({ error: 'title required (1–300 chars)' });
+  if (!isString(description, 2000)) return res.status(400).json({ error: 'description required (1–2000 chars)' });
+  if (!VALID_TYPES.has(type)) return res.status(400).json({ error: 'type invalid' });
+  if (!VALID_SKILL_LEVELS.has(skillLevel)) return res.status(400).json({ error: 'skillLevel invalid' });
+  if (!isString(url, 2048) || !SAFE_URL.test(url)) return res.status(400).json({ error: 'url must be https://' });
+  if (thumbnail !== undefined && thumbnail !== null && (!isString(thumbnail, 2048) || !SAFE_URL.test(thumbnail))) {
+    return res.status(400).json({ error: 'thumbnail must be https://' });
+  }
+  if (useCases !== undefined && !Array.isArray(useCases)) {
+    return res.status(400).json({ error: 'useCases must be an array' });
+  }
+  if (duration !== undefined && duration !== null && !isString(String(duration), 32)) {
+    return res.status(400).json({ error: 'duration invalid' });
+  }
+
   const newResource = {
     title,
     description,
     type,
     skill_level: skillLevel,
-    use_cases: useCases || [],
+    use_cases: Array.isArray(useCases) ? useCases.slice(0, 32).map(String) : [],
     url,
-    thumbnail,
-    duration,
+    thumbnail: thumbnail || null,
+    duration: duration || null,
   };
   
   if (supabase) {
@@ -285,8 +310,8 @@ router.post('/', async (req, res) => {
   }
 });
 
-// DELETE /api/resources/:id - Delete resource
-router.delete('/:id', async (req, res) => {
+// DELETE /api/resources/:id - Delete resource (admin only)
+router.delete('/:id', authenticate, requireAdmin, async (req, res) => {
   if (supabase) {
     try {
       const { error } = await supabase
@@ -306,8 +331,8 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-// POST /api/resources/sync-youtube - Sync videos from TigerGraph YouTube channel
-router.post('/sync-youtube', async (req, res) => {
+// POST /api/resources/sync-youtube - Sync videos from TigerGraph YouTube channel (admin only)
+router.post('/sync-youtube', authenticate, requireAdmin, async (req, res) => {
   try {
     console.log('🚀 [Manual] Starting YouTube sync...');
     await syncYouTubeVideos();

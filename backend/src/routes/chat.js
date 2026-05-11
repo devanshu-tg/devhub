@@ -4,11 +4,43 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { supabase } = require('../config/supabase');
 const fs = require('fs');
 const path = require('path');
+const { rateLimit } = require('../middleware/rateLimit');
+
+// Cap Gemini-backed traffic — protects both the API budget and the user from
+// runaway clients. Tight enough to stop abuse, loose enough for real chatting.
+const chatLimiter = rateLimit({ windowMs: 60_000, max: 20, name: 'chat' });
+const searchLimiter = rateLimit({ windowMs: 60_000, max: 30, name: 'chat-search' });
+
+// Hard ceiling on any single message — also enforced by the body limit, but
+// this is the specific user-facing error.
+const MAX_MESSAGE_LEN = 4000;
+const MAX_HISTORY_ITEMS = 40;
 
 // Initialize Gemini (will use API key from env)
-const genAI = process.env.GEMINI_API_KEY 
+const genAI = process.env.GEMINI_API_KEY
   ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
   : null;
+
+// Model selection — stable GA models by default. All configurable via env so
+// you can switch to a preview (e.g. gemini-3.1-pro-preview) without touching code.
+//   QA      → deep technical answers, RAG-augmented → `pro` for quality
+//   LEARNING → conversational, snappy → `flash` for low latency
+//   SELECTION → "pick N indices" sub-call → `flash` w/ thinking disabled (cheap)
+const MODEL_QA = process.env.GEMINI_MODEL_QA || 'gemini-2.5-pro';
+const MODEL_LEARNING = process.env.GEMINI_MODEL_LEARNING || 'gemini-2.5-flash';
+const MODEL_SELECTION = process.env.GEMINI_MODEL_SELECTION || 'gemini-2.5-flash';
+
+// Generation config baselines. The 2.5 family eats output budget on internal
+// "thinking" tokens, so chat calls need a generous ceiling. The selection call
+// is a one-shot index pick — disable thinking and cap output tight.
+const GEN_CONFIG_CHAT = { maxOutputTokens: 2048, temperature: 0.7 };
+const GEN_CONFIG_SELECTION = {
+  maxOutputTokens: 64,
+  temperature: 0.1,
+  thinkingConfig: { thinkingBudget: 0 },
+};
+
+console.log(`🤖 Gemini models: qa=${MODEL_QA} learning=${MODEL_LEARNING} selection=${MODEL_SELECTION}`);
 
 // =============================================================================
 // TOPIC KEYWORDS FOR DATABASE SEARCH
@@ -350,7 +382,10 @@ async function handleQAMode(req, res, message, history) {
   // Try to use Gemini for direct Q&A (no resources in Q&A mode)
   if (genAI) {
     try {
-      const model = genAI.getGenerativeModel({ model: "gemini-3-pro-preview" });
+      const model = genAI.getGenerativeModel({
+        model: MODEL_QA,
+        generationConfig: GEN_CONFIG_CHAT,
+      });
       
       // RAG: Retrieve relevant context from knowledge base
       let ragContext = '';
@@ -473,7 +508,10 @@ In the meantime, you can:
       })),
     ];
 
-    const model = genAI.getGenerativeModel({ model: "gemini-3-pro-preview" });
+    const model = genAI.getGenerativeModel({
+      model: MODEL_LEARNING,
+      generationConfig: GEN_CONFIG_CHAT,
+    });
     const chat = model.startChat({ history: chatHistory });
     const result = await chat.sendMessage(message);
     let aiResponse = result.response.text();
@@ -515,7 +553,12 @@ Return ONLY a comma-separated list of numbers (1-${candidates.length}) for the B
 Pick resources that best match their needs. No explanation needed.`;
 
         try {
-          const selectionResult = await model.generateContent(selectionPrompt);
+          // Cheap model + no "thinking" — this call only emits 1–15 comma-separated numbers.
+          const selectionModel = genAI.getGenerativeModel({
+            model: MODEL_SELECTION,
+            generationConfig: GEN_CONFIG_SELECTION,
+          });
+          const selectionResult = await selectionModel.generateContent(selectionPrompt);
           const selectionText = selectionResult.response.text();
           
           // Parse selected indices
@@ -609,23 +652,25 @@ Pick resources that best match their needs. No explanation needed.`;
 // =============================================================================
 // MAIN CONVERSATION HANDLER
 // =============================================================================
-router.post('/', async (req, res) => {
-  const { message, history = [], conversationContext = {}, mode = 'learning' } = req.body;
-  
-  if (!message) {
+router.post('/', chatLimiter, async (req, res) => {
+  const { message, history = [], conversationContext = {}, mode = 'learning' } = req.body || {};
+
+  if (typeof message !== 'string' || message.length === 0) {
     return res.status(400).json({ error: 'Message is required' });
   }
-  
-  // ==========================================================================
-  // Q&A MODE - Direct answers without guided flow (UNCHANGED)
-  // ==========================================================================
+  if (message.length > MAX_MESSAGE_LEN) {
+    return res.status(413).json({ error: `Message too long (max ${MAX_MESSAGE_LEN} chars)` });
+  }
+  if (!Array.isArray(history) || history.length > MAX_HISTORY_ITEMS) {
+    return res.status(400).json({ error: 'Invalid history' });
+  }
+  if (mode !== 'learning' && mode !== 'qa') {
+    return res.status(400).json({ error: 'Invalid mode' });
+  }
+
   if (mode === 'qa') {
     return handleQAMode(req, res, message, history);
   }
-  
-  // ==========================================================================
-  // LEARNING MODE - Now fully AI-driven!
-  // ==========================================================================
   return handleLearningMode(req, res, message, history);
 });
 
@@ -664,7 +709,7 @@ router.get('/topics', async (req, res) => {
 });
 
 // POST /api/chat/search - Direct resource search
-router.post('/search', async (req, res) => {
+router.post('/search', searchLimiter, async (req, res) => {
   const { topic, skillLevel, type, limit = 10 } = req.body;
   
   if (!supabase) {

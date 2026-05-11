@@ -26,3 +26,15 @@ npm-debug.log*
 .vscode/
 *.swp
 *.swo
+
+# secrets / private data — never commit
+command for jwt
+*.secret
+*.secrets
+secrets/
+*token*
+*credentials*
+
+# raw outreach / contact data
+Outreach List*.csv
+*-outreach*.csv
